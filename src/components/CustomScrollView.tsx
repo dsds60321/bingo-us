@@ -5,17 +5,28 @@ interface CustomScrollViewProps extends ScrollViewProps {
   children: React.ReactNode;
 }
 
-export function CustomScrollView({ children, ...props }: CustomScrollViewProps) {
+export const CustomScrollView: React.FC<CustomScrollViewProps> = ({
+                                                                    children,
+                                                                    contentContainerStyle,
+                                                                    ...props
+                                                                  }) => {
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{
-        paddingBottom: 120, // 🎯 하단 탭을 위한 패딩 추가
-        ...props.contentContainerStyle,
-      }}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={[
+        {
+          paddingBottom: 120, // 하단 탭을 위한 패딩 추가
+          flexGrow: 1,
+        },
+        contentContainerStyle,
+      ]}
       {...props}
     >
       {children}
     </ScrollView>
   );
-}
+};
+
+// 기본 export도 추가
+export default CustomScrollView;

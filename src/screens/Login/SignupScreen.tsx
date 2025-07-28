@@ -7,14 +7,13 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Alert,
-  ScrollView,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../../store/themeStore';
-import { useAppStore } from '../../store/appStore';
-import { CustomScrollView } from '../../components/CustomScrollView.tsx';
+import { authService } from '../../services/AuthService';
+import CustomScrollView from '../../components/CustomScrollView';
 
 const createStyles = (colors: any) => StyleSheet.create({
   container: {
@@ -52,7 +51,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '800',
     color: colors.primary,
     textAlign: 'center',
-    marginRight: 40, // backButton 크기만큼 오프셋
+    marginRight: 40,
   },
   content: {
     padding: 20,
@@ -107,6 +106,9 @@ const createStyles = (colors: any) => StyleSheet.create({
   inputError: {
     borderColor: colors.error || '#FF6B6B',
   },
+  inputVerified: {
+    borderColor: '#4CAF50',
+  },
   inputIcon: {
     paddingLeft: 16,
   },
@@ -116,28 +118,82 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
+  emailInputWrapper: {
+    flex: 1,
+  },
+  verifyButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  verifyButtonDisabled: {
+    backgroundColor: '#CCC',
+  },
+  verifyButtonVerified: {
+    backgroundColor: '#4CAF50',
+  },
+  verifyButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  verificationContainer: {
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: colors.surfaceVariant,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  verificationInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  verificationInput: {
+    flex: 1,
+    padding: 12,
+    fontSize: 16,
+    color: '#333',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  verificationButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  verificationButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  verificationTimer: {
+    fontSize: 12,
+    color: colors.primary,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  verificationSuccess: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  verificationSuccessText: {
+    color: '#4CAF50',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
   errorText: {
     fontSize: 12,
     color: colors.error || '#FF6B6B',
     marginTop: 4,
     marginLeft: 8,
-  },
-  passwordStrength: {
-    marginTop: 8,
-  },
-  strengthBar: {
-    height: 4,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 2,
-    marginBottom: 4,
-  },
-  strengthFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  strengthText: {
-    fontSize: 12,
-    textAlign: 'center',
   },
   signupButton: {
     backgroundColor: colors.primary,
@@ -173,6 +229,9 @@ const createStyles = (colors: any) => StyleSheet.create({
     color: colors.secondary,
     fontWeight: '500',
   },
+  loadingButton: {
+    opacity: 0.6,
+  },
 });
 
 interface FormErrors {
@@ -184,7 +243,6 @@ interface FormErrors {
 
 export function SignupScreen({ navigation }: any) {
   const colors = useTheme();
-  const { signup } = useAppStore();
 
   const [formData, setFormData] = useState({
     username: '',
@@ -195,6 +253,16 @@ export function SignupScreen({ navigation }: any) {
   });
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [isLoading, setIsLoading] = useState(false);
+
+  // 이메일 인증 관련 상태
+  const [emailVerification, setEmailVerification] = useState({
+    isVerifying: false,
+    isVerified: false,
+    verificationCode: '',
+    timer: 0,
+    canResend: true,
+  });
 
   // 유효성 검사 함수들
   const validateUsername = (username: string) => {
@@ -207,9 +275,6 @@ export function SignupScreen({ navigation }: any) {
   const validatePassword = (password: string) => {
     if (!password) return '비밀번호를 입력해주세요.';
     if (password.length < 8) return '비밀번호는 8글자 이상이어야 합니다.';
-    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-      return '영문 대소문자와 숫자를 포함해야 합니다.';
-    }
     return '';
   };
 
@@ -226,28 +291,106 @@ export function SignupScreen({ navigation }: any) {
     return '';
   };
 
-  // 비밀번호 강도 계산
-  const getPasswordStrength = (password: string) => {
-    let score = 0;
-    if (password.length >= 8) score += 1;
-    if (/[a-z]/.test(password)) score += 1;
-    if (/[A-Z]/.test(password)) score += 1;
-    if (/\d/.test(password)) score += 1;
-    if (/[!@#$%^&*]/.test(password)) score += 1;
+  // 이메일 인증 코드 발송
+  const sendVerificationCode = async () => {
+    const emailError = validateEmail(formData.email);
+    if (emailError) {
+      setErrors(prev => ({ ...prev, email: emailError }));
+      return;
+    }
 
-    const strengths = ['매우 약함', '약함', '보통', '강함', '매우 강함'];
-    const colors = ['#FF6B6B', '#FF8E53', '#FFD93D', '#6BCF7F', '#4ECDC4'];
+    // 아이디가 입력되지 않은 경우 체크
+    if (!formData.username.trim()) {
+      setErrors(prev => ({ ...prev, username: '아이디를 먼저 입력해주세요.' }));
+      return;
+    }
 
-    return {
-      score,
-      text: strengths[score] || '매우 약함',
-      color: colors[score] || '#FF6B6B',
-      width: `${(score / 5) * 100}%`
-    };
+    setIsLoading(true);
+    try {
+      console.log('Sending verification code...'); // 디버깅용
+      const response = await authService.verifyEmail(formData.username, formData.email);
+      console.log('Verification response:', response); // 디버깅용
+
+      if (response.data.success) {
+        // 인증 코드 입력 화면을 표시하기 위해 상태 업데이트
+        setEmailVerification(prev => ({
+          ...prev,
+          isVerifying: true,
+          isVerified: false,
+          verificationCode: '', // 코드 초기화
+          timer: 300, // 5분
+          canResend: false,
+        }));
+
+        Alert.alert('인증 코드 발송', `인증 코드를 ${formData.email}로 발송했습니다.`);
+
+        // 타이머 시작
+        const timer = setInterval(() => {
+          setEmailVerification(prev => {
+            if (prev.timer <= 1) {
+              clearInterval(timer);
+              return { ...prev, timer: 0, canResend: true };
+            }
+            return { ...prev, timer: prev.timer - 1 };
+          });
+        }, 1000);
+      } else {
+        Alert.alert('발송 실패', response.message || '인증 코드 발송에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Verification error:', error); // 디버깅용
+      Alert.alert('오류', '인증 코드 발송 중 문제가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
+  // 인증 코드 확인
+  const verifyCode = async () => {
+    if (!emailVerification.verificationCode.trim()) {
+      Alert.alert('알림', '인증 코드를 입력해주세요.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await authService.confirmEmail(
+        formData.email,
+        emailVerification.verificationCode
+      );
+
+      if (response.data.verified) {
+        setEmailVerification(prev => ({
+          ...prev,
+          isVerified: true,
+          isVerifying: false,
+        }));
+        Alert.alert('인증 완료', '이메일 인증이 완료되었습니다! ✅');
+      } else {
+        Alert.alert('인증 실패', response.message || '인증 코드가 올바르지 않습니다.');
+      }
+    } catch (error) {
+      Alert.alert('오류', '인증 확인 중 문제가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+
+    // 이메일이 변경되면 인증 상태 초기화
+    if (field === 'email') {
+      setEmailVerification(prev => ({
+        ...prev,
+        isVerifying: false,
+        isVerified: false,
+        verificationCode: '',
+        timer: 0,
+        canResend: true,
+      }));
+    }
 
     // 실시간 유효성 검사
     let error = '';
@@ -284,6 +427,12 @@ export function SignupScreen({ navigation }: any) {
       return;
     }
 
+    // 이메일 인증 확인
+    if (!emailVerification.isVerified) {
+      Alert.alert('알림', '이메일 인증을 완료해주세요.');
+      return;
+    }
+
     // 에러가 있는지 확인
     const hasErrors = Object.values(newErrors).some(error => error !== '');
     if (hasErrors) {
@@ -292,15 +441,16 @@ export function SignupScreen({ navigation }: any) {
       return;
     }
 
+    setIsLoading(true);
     try {
-      const success = await signup({
+      const response = await authService.signUp({
         username: formData.username,
         password: formData.password,
         nickname: formData.nickname,
         email: formData.email,
       });
 
-      if (success) {
+      if (response.success) {
         Alert.alert(
           '회원가입 완료! 🎉',
           '환영합니다! 로그인 화면으로 이동합니다.',
@@ -309,10 +459,12 @@ export function SignupScreen({ navigation }: any) {
           ]
         );
       } else {
-        Alert.alert('회원가입 실패', '이미 존재하는 아이디입니다.');
+        Alert.alert('회원가입 실패', response.message || '회원가입에 실패했습니다.');
       }
     } catch (error) {
       Alert.alert('오류', '회원가입 중 문제가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -323,33 +475,41 @@ export function SignupScreen({ navigation }: any) {
       formData.nickname &&
       formData.email &&
       formData.password === formData.confirmPassword &&
+      emailVerification.isVerified &&
       Object.values(errors).every(error => !error);
   };
 
-  const passwordStrength = getPasswordStrength(formData.password);
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const styles = createStyles(colors);
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* 헤더 */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Icon name="arrow-back" size={24} color={colors.primary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>회원가입</Text>
+      </View>
+
       <KeyboardAvoidingView
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
-        {/* 헤더 */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Icon name="arrow-back" size={24} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>회원가입</Text>
-        </View>
-
         <CustomScrollView
           style={styles.scrollView}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ flexGrow: 1 }}
         >
           <View style={styles.content}>
             {/* 회원가입 폼 */}
@@ -385,6 +545,9 @@ export function SignupScreen({ navigation }: any) {
                     onBlur={() => setFocusedInput(null)}
                     autoCapitalize="none"
                     autoCorrect={false}
+                    editable={!isLoading}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
                   />
                 </View>
                 {errors.username ? <Text style={styles.errorText}>{errors.username}</Text> : null}
@@ -408,7 +571,7 @@ export function SignupScreen({ navigation }: any) {
                   />
                   <TextInput
                     style={styles.input}
-                    placeholder="8글자 이상, 영문/숫자 포함"
+                    placeholder="8글자 이상의 비밀번호"
                     placeholderTextColor="#B0B0B0"
                     value={formData.password}
                     onChangeText={(text) => handleInputChange('password', text)}
@@ -417,29 +580,12 @@ export function SignupScreen({ navigation }: any) {
                     secureTextEntry
                     autoCapitalize="none"
                     autoCorrect={false}
+                    editable={!isLoading}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
                   />
                 </View>
                 {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
-
-                {/* 비밀번호 강도 표시 */}
-                {formData.password ? (
-                  <View style={styles.passwordStrength}>
-                    <View style={styles.strengthBar}>
-                      <View
-                        style={[
-                          styles.strengthFill,
-                          {
-                            backgroundColor: passwordStrength.color,
-                            width: passwordStrength.width
-                          }
-                        ]}
-                      />
-                    </View>
-                    <Text style={[styles.strengthText, { color: passwordStrength.color }]}>
-                      {passwordStrength.text}
-                    </Text>
-                  </View>
-                ) : null}
               </View>
 
               {/* 비밀번호 확인 */}
@@ -469,6 +615,9 @@ export function SignupScreen({ navigation }: any) {
                     secureTextEntry
                     autoCapitalize="none"
                     autoCorrect={false}
+                    editable={!isLoading}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
                   />
                 </View>
                 {formData.confirmPassword && formData.password !== formData.confirmPassword ? (
@@ -501,12 +650,15 @@ export function SignupScreen({ navigation }: any) {
                     onFocus={() => setFocusedInput('nickname')}
                     onBlur={() => setFocusedInput(null)}
                     autoCorrect={false}
+                    editable={!isLoading}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
                   />
                 </View>
                 {errors.nickname ? <Text style={styles.errorText}>{errors.nickname}</Text> : null}
               </View>
 
-              {/* 이메일 입력 */}
+              {/* 이메일 입력 및 인증 */}
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>
                   이메일 <Text style={styles.required}>*</Text>
@@ -514,41 +666,120 @@ export function SignupScreen({ navigation }: any) {
                 <View style={[
                   styles.inputWrapper,
                   focusedInput === 'email' && styles.inputFocused,
-                  errors.email && styles.inputError
+                  errors.email && styles.inputError,
+                  emailVerification.isVerified && styles.inputVerified
                 ]}>
                   <Icon
                     name="email"
                     size={20}
-                    color={focusedInput === 'email' ? colors.primary : '#666'}
+                    color={
+                      emailVerification.isVerified ? '#4CAF50' :
+                        focusedInput === 'email' ? colors.primary : '#666'
+                    }
                     style={styles.inputIcon}
                   />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="example@email.com"
-                    placeholderTextColor="#B0B0B0"
-                    value={formData.email}
-                    onChangeText={(text) => handleInputChange('email', text)}
-                    onFocus={() => setFocusedInput('email')}
-                    onBlur={() => setFocusedInput(null)}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    keyboardType="email-address"
-                  />
+                  <View style={styles.emailInputWrapper}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="example@email.com"
+                      placeholderTextColor="#B0B0B0"
+                      value={formData.email}
+                      onChangeText={(text) => handleInputChange('email', text)}
+                      onFocus={() => setFocusedInput('email')}
+                      onBlur={() => setFocusedInput(null)}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      keyboardType="email-address"
+                      editable={!emailVerification.isVerified && !isLoading}
+                      returnKeyType="done"
+                      blurOnSubmit={false}
+                    />
+                  </View>
+                  {!emailVerification.isVerified && (
+                    <TouchableOpacity
+                      style={[
+                        styles.verifyButton,
+                        isLoading && styles.loadingButton,
+                        (!formData.email || errors.email || !emailVerification.canResend) && styles.verifyButtonDisabled
+                      ]}
+                      onPress={sendVerificationCode}
+                      disabled={!formData.email || !!errors.email || !emailVerification.canResend || isLoading}
+                    >
+                      <Text style={styles.verifyButtonText}>
+                        {isLoading ? '발송중...' : emailVerification.isVerifying ? '재발송' : '인증'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  {emailVerification.isVerified && (
+                    <View style={styles.verifyButtonVerified}>
+                      <Icon name="check" size={16} color="#fff" />
+                    </View>
+                  )}
                 </View>
                 {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
+
+                {/* 인증 코드 입력 */}
+                {emailVerification.isVerifying && !emailVerification.isVerified && (
+                  <View style={styles.verificationContainer}>
+                    <Text style={[styles.label, { marginBottom: 8 }]}>인증 코드</Text>
+                    <View style={styles.verificationInputWrapper}>
+                      <TextInput
+                        style={styles.verificationInput}
+                        placeholder="6자리 인증 코드"
+                        placeholderTextColor="#B0B0B0"
+                        value={emailVerification.verificationCode}
+                        onChangeText={(text) => setEmailVerification(prev => ({ ...prev, verificationCode: text }))}
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        editable={!isLoading}
+                        returnKeyType="done"
+                        blurOnSubmit={false}
+                      />
+                      <TouchableOpacity
+                        style={[
+                          styles.verificationButton,
+                          isLoading && styles.loadingButton
+                        ]}
+                        onPress={verifyCode}
+                        disabled={isLoading}
+                      >
+                        <Text style={styles.verificationButtonText}>
+                          {isLoading ? '확인중...' : '확인'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    {emailVerification.timer > 0 && (
+                      <Text style={styles.verificationTimer}>
+                        남은 시간: {formatTime(emailVerification.timer)}
+                      </Text>
+                    )}
+                  </View>
+                )}
+
+                {/* 인증 성공 메시지 */}
+                {emailVerification.isVerified && (
+                  <View style={styles.verificationSuccess}>
+                    <Icon name="check-circle" size={16} color="#4CAF50" />
+                    <Text style={styles.verificationSuccessText}>
+                      이메일 인증이 완료되었습니다!
+                    </Text>
+                  </View>
+                )}
               </View>
 
               {/* 회원가입 버튼 */}
               <TouchableOpacity
                 style={[
                   styles.signupButton,
-                  !isFormValid() && styles.signupButtonDisabled
+                  (!isFormValid() || isLoading) && styles.signupButtonDisabled
                 ]}
                 onPress={handleSignup}
-                disabled={!isFormValid()}
+                disabled={!isFormValid() || isLoading}
               >
                 <Icon name="person-add" size={20} color="#fff" />
-                <Text style={styles.signupButtonText}>계정 만들기</Text>
+                <Text style={styles.signupButtonText}>
+                  {isLoading ? '가입 중...' : '회원가입'}
+                </Text>
               </TouchableOpacity>
 
               {/* 로그인 링크 */}
@@ -556,7 +787,9 @@ export function SignupScreen({ navigation }: any) {
                 style={styles.loginLink}
                 onPress={() => navigation.goBack()}
               >
-                <Text style={styles.loginLinkText}>이미 계정이 있으신가요? 로그인하기</Text>
+                <Text style={styles.loginLinkText}>
+                  이미 계정이 있으신가요? 로그인하기
+                </Text>
               </TouchableOpacity>
             </View>
           </View>

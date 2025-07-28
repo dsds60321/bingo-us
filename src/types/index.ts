@@ -14,24 +14,36 @@ export interface Couple {
 
 export interface Anniversary {
   id: string;
+  type: 'ANNIVERSARY' | 'BIRTHDAY' | 'CUSTOM';
   title: string;
   date: string; // YYYY-MM-DD
-  type: 'anniversary' | 'birthday' | 'custom';
-  isRecurring: boolean;
-  coupleId: string;
+  isContinue: number; // 0 또는 1 (매년 반복)
+  isPrivate: number; // 0 또는 1 (비공개)
   description?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Schedule {
   id: string;
   title: string;
-  date: string; // YYYY-MM-DD
-  time?: string; // HH:MM
-  location?: string;
   description?: string;
-  coupleId: string;
+  date: string; // YYYY-MM-DD
+  time?: string; // HH:mm
+  location?: string;
+  priority: 'low' | 'medium' | 'high';
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  assignedTo?: string;
+  category?: string;
+  estimatedDuration?: number; // 분 단위
+  tags?: string[];
+  completedAt?: string;
+  completedBy?: string;
   createdBy: string;
+  createdAt: string;
+  updatedAt: string;
 }
+
 
 export interface BudgetItem {
   id: string;

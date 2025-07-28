@@ -17,6 +17,7 @@ import { format, isToday, isYesterday, isTomorrow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useTheme } from '../../store/themeStore';
 import { CustomScrollView } from '../../components/CustomScrollView.tsx';
+import { anniversaryService, CreateAnniversaryRequest } from '../../services/AnniversaryService';
 
 // 🇰🇷 date-fns를 사용한 한국어 로케일 설정
 LocaleConfig.locales['ko'] = {
@@ -255,6 +256,10 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
   },
+  saveButtonDisabled: {
+    backgroundColor: '#ccc',
+    shadowOpacity: 0,
+  },
   // 📅 캘린더 모달 스타일
   modalOverlay: {
     flex: 1,
@@ -327,6 +332,7 @@ export function AnniversaryAddScreen({ navigation }: any) {
   const [type, setType] = useState<'anniversary' | 'birthday' | 'custom'>('anniversary');
   const [isRecurring, setIsRecurring] = useState(true);
   const [description, setDescription] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const anniversaryTypes = [
     {
@@ -334,37 +340,68 @@ export function AnniversaryAddScreen({ navigation }: any) {
       label: '기념일',
       emoji: '💕',
       color: colors.accent1,
-      examples: ['사귄 날', '결혼 기념일', '첫 만남']
+      examples: ['사귄 날', '결혼 기념일', '첫 만남'],
+      apiType: 'ANNIVERSARY' as const,
     },
     {
       key: 'birthday',
       label: '생일',
       emoji: '🎂',
       color: colors.accent2,
-      examples: ['내 생일', '상대방 생일', '가족 생일']
+      examples: ['내 생일', '상대방 생일', '가족 생일'],
+      apiType: 'BIRTHDAY' as const,
     },
     {
       key: 'custom',
       label: '특별한 날',
       emoji: '🎉',
       color: colors.secondary,
-      examples: ['크리스마스', '발렌타인데이', '화이트데이']
+      examples: ['크리스마스', '발렌타인데이', '화이트데이'],
+      apiType: 'CUSTOM' as const,
     },
   ] as const;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title.trim()) {
       Alert.alert('알림', '기념일 이름을 입력해주세요.');
       return;
     }
 
-    Alert.alert(
-      '완료! 🎉',
-      '새로운 기념일이 등록되었습니다.',
-      [
-        { text: '확인', onPress: () => navigation.goBack() }
-      ]
-    );
+    setIsLoading(true);
+
+    try {
+      const selectedTypeInfo = anniversaryTypes.find(t => t.key === type)!;
+
+      const anniversaryData: CreateAnniversaryRequest = {
+        type: selectedTypeInfo.apiType,
+        title: title.trim(),
+        date: format(selectedDate, 'yyyy-MM-dd'),
+        isContinue: isRecurring ? 1 : 0,
+        isPrivate: 0, // 고정값
+        description: description.trim() || undefined,
+      };
+
+      console.log('Sending anniversary data:', anniversaryData);
+
+      const response = await anniversaryService.createAnniversary(anniversaryData);
+
+      if (response.success) {
+        Alert.alert(
+          '완료! 🎉',
+          '새로운 기념일이 등록되었습니다.',
+          [
+            { text: '확인', onPress: () => navigation.goBack() }
+          ]
+        );
+      } else {
+        Alert.alert('등록 실패', response.message || '기념일 등록에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Anniversary save error:', error);
+      Alert.alert('오류', '기념일 등록 중 문제가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // 📅 date-fns를 사용한 날짜 포맷팅
@@ -457,6 +494,7 @@ export function AnniversaryAddScreen({ navigation }: any) {
                     }
                   ]}
                   onPress={() => setType(item.key)}
+                  disabled={isLoading}
                 >
                   <Text style={styles.typeEmoji}>{item.emoji}</Text>
                   <Text style={[
@@ -488,13 +526,18 @@ export function AnniversaryAddScreen({ navigation }: any) {
               value={title}
               onChangeText={setTitle}
               maxLength={30}
+              editable={!isLoading}
             />
           </View>
 
           {/* 날짜 선택 */}
           <View style={styles.section}>
             <Text style={styles.label}>날짜</Text>
-            <TouchableOpacity style={styles.dateButton} onPress={goToDatePicker}>
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={goToDatePicker}
+              disabled={isLoading}
+            >
               <Icon name="calendar-today" size={20} color={colors.primary} />
               <Text style={styles.dateText}>{formatDate(selectedDate)}</Text>
               <Icon name="chevron-right" size={20} color="#B0B0B0" />
@@ -515,6 +558,7 @@ export function AnniversaryAddScreen({ navigation }: any) {
                 onValueChange={setIsRecurring}
                 trackColor={{ false: '#E0E0E0', true: colors.primaryLight }}
                 thumbColor={isRecurring ? colors.primary : '#B0B0B0'}
+                disabled={isLoading}
               />
             </View>
           </View>
@@ -531,6 +575,7 @@ export function AnniversaryAddScreen({ navigation }: any) {
               multiline
               textAlignVertical="top"
               maxLength={200}
+              editable={!isLoading}
             />
           </View>
 
@@ -554,9 +599,18 @@ export function AnniversaryAddScreen({ navigation }: any) {
           </View>
 
           {/* 저장 버튼 */}
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+          <TouchableOpacity
+            style={[
+              styles.saveButton,
+              (isLoading || !title.trim()) && styles.saveButtonDisabled
+            ]}
+            onPress={handleSave}
+            disabled={isLoading || !title.trim()}
+          >
             <Icon name="celebration" size={24} color="#fff" />
-            <Text style={styles.saveButtonText}>기념일 등록하기</Text>
+            <Text style={styles.saveButtonText}>
+              {isLoading ? '등록 중...' : '기념일 등록하기'}
+            </Text>
           </TouchableOpacity>
         </View>
       </CustomScrollView>

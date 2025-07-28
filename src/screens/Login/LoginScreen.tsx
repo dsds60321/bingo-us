@@ -1,202 +1,202 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  SafeAreaView,
+  ActivityIndicator,
   Alert,
-  ScrollView,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../../store/themeStore';
 import { useAppStore } from '../../store/appStore';
 import { CustomScrollView } from '../../components/CustomScrollView.tsx';
 
-const createStyles = (colors: any) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  keyboardAvoidingView: {
-    flex: 1,
-  },
-  scrollView: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
-  content: {
-    padding: 20,
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 50,
-  },
-  logo: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  appName: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.primary,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  formContainer: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    padding: 24,
-    marginBottom: 20,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  formTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.primary,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
-    marginBottom: 8,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceVariant,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  inputFocused: {
-    borderColor: colors.primary,
-  },
-  inputIcon: {
-    paddingLeft: 16,
-  },
-  input: {
-    flex: 1,
-    padding: 16,
-    fontSize: 16,
-    color: '#333',
-  },
-  loginButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 8,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  loginButtonDisabled: {
-    backgroundColor: '#CCC',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  loginButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E0E0E0',
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    fontSize: 14,
-    color: '#666',
-  },
-  signupButton: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  signupButtonText: {
-    color: colors.primary,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  forgotPassword: {
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  forgotPasswordText: {
-    fontSize: 14,
-    color: colors.secondary,
-    fontWeight: '500',
-  },
-  // 🎯 데모 계정 정보
-  demoInfo: {
-    backgroundColor: colors.surfaceVariant,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.accent1,
-  },
-  demoTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 8,
-  },
-  demoAccount: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-    fontFamily: 'monospace',
-  },
-  quickLoginButton: {
-    backgroundColor: colors.accent1,
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 8,
-    alignItems: 'center',
-  },
-  quickLoginText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    keyboardAvoidingView: {
+      flex: 1,
+    },
+    scrollView: {
+      flexGrow: 1,
+      justifyContent: 'center',
+    },
+    content: {
+      padding: 20,
+    },
+    logoContainer: {
+      alignItems: 'center',
+      marginBottom: 50,
+    },
+    logo: {
+      fontSize: 48,
+      marginBottom: 16,
+    },
+    appName: {
+      fontSize: 28,
+      fontWeight: '800',
+      color: colors.primary,
+      marginBottom: 8,
+    },
+    subtitle: {
+      fontSize: 16,
+      color: '#666',
+      textAlign: 'center',
+    },
+    formContainer: {
+      backgroundColor: colors.surface,
+      borderRadius: 24,
+      padding: 24,
+      marginBottom: 20,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.15,
+      shadowRadius: 16,
+      elevation: 8,
+    },
+    formTitle: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.primary,
+      textAlign: 'center',
+      marginBottom: 24,
+    },
+    inputContainer: {
+      marginBottom: 16,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
+      marginBottom: 8,
+    },
+    inputWrapper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surfaceVariant,
+      borderRadius: 16,
+      borderWidth: 2,
+      borderColor: 'transparent',
+    },
+    inputFocused: {
+      borderColor: colors.primary,
+    },
+    inputIcon: {
+      paddingLeft: 16,
+    },
+    input: {
+      flex: 1,
+      padding: 16,
+      fontSize: 16,
+      color: '#333',
+    },
+    loginButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 16,
+      padding: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      marginTop: 8,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 6,
+    },
+    loginButtonDisabled: {
+      backgroundColor: '#CCC',
+      shadowOpacity: 0,
+      elevation: 0,
+    },
+    loginButtonText: {
+      color: '#fff',
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    divider: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginVertical: 24,
+    },
+    dividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: '#E0E0E0',
+    },
+    dividerText: {
+      marginHorizontal: 16,
+      fontSize: 14,
+      color: '#666',
+    },
+    signupButton: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      borderWidth: 2,
+      borderColor: colors.primary,
+    },
+    signupButtonText: {
+      color: colors.primary,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    forgotPassword: {
+      alignItems: 'center',
+      marginTop: 16,
+    },
+    forgotPasswordText: {
+      fontSize: 14,
+      color: colors.secondary,
+      fontWeight: '500',
+    },
+    // 🎯 데모 계정 정보
+    demoInfo: {
+      backgroundColor: colors.surfaceVariant,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 20,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.accent1,
+    },
+    demoTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.primary,
+      marginBottom: 8,
+    },
+    demoAccount: {
+      fontSize: 12,
+      color: '#666',
+      marginBottom: 4,
+      fontFamily: 'monospace',
+    },
+    quickLoginButton: {
+      backgroundColor: colors.accent1,
+      borderRadius: 12,
+      padding: 12,
+      marginTop: 8,
+      alignItems: 'center',
+    },
+    quickLoginText: {
+      color: '#fff',
+      fontSize: 12,
+      fontWeight: '600',
+    },
+  });
 
 export function LoginScreen({ navigation }: any) {
   const colors = useTheme();
