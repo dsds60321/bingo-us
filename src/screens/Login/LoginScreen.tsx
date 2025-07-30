@@ -235,21 +235,6 @@ export function LoginScreen({ navigation }: any) {
     navigation.navigate('Signup');
   };
 
-  // 🎯 빠른 로그인 (데모용)
-  const handleQuickLogin = async (demoUsername: string, demoPassword: string) => {
-    setUsername(demoUsername);
-    setPassword(demoPassword);
-
-    try {
-      const success = await login(demoUsername, demoPassword);
-      if (!success) {
-        Alert.alert('오류', '데모 계정 로그인에 실패했습니다.');
-      }
-    } catch (error) {
-      Alert.alert('오류', '로그인 중 문제가 발생했습니다.');
-    }
-  };
-
   const styles = createStyles(colors);
 
   return (
@@ -271,20 +256,6 @@ export function LoginScreen({ navigation }: any) {
               <Text style={styles.subtitle}>
                 소중한 사람과 함께하는{'\n'}특별한 순간들을 기록해보세요
               </Text>
-            </View>
-
-            {/* 🎯 데모 계정 정보 */}
-            <View style={styles.demoInfo}>
-              <Text style={styles.demoTitle}>📱 체험해보기</Text>
-              <Text style={styles.demoAccount}>아이디: demo1 / 비밀번호: password123</Text>
-              <Text style={styles.demoAccount}>아이디: demo2 / 비밀번호: password123</Text>
-              <TouchableOpacity
-                style={styles.quickLoginButton}
-                onPress={() => handleQuickLogin('demo1', 'password123')}
-                disabled={isLoading}
-              >
-                <Text style={styles.quickLoginText}>김철수로 빠른 로그인</Text>
-              </TouchableOpacity>
             </View>
 
             {/* 로그인 폼 */}
