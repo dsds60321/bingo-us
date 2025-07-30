@@ -18,56 +18,12 @@ interface BudgetStore {
 }
 
 export const useBudgetStore = create<BudgetStore>((set, get) => ({
-  budgetItems: [
-    // 예시 데이터
-    {
-      id: '1',
-      title: '저녁 식사',
-      amount: 85000,
-      paidBy: 'user1',
-      category: 'food',
-      date: '2025-06-20',
-      location: '강남역 맛집',
-      description: '첫 데이트 저녁식사',
-      coupleId: 'couple1',
-      splitRatio: { user1: 0.6, user2: 0.4 }
-    },
-    {
-      id: '2',
-      title: '영화 관람',
-      amount: 32000,
-      paidBy: 'user2',
-      category: 'entertainment',
-      date: '2025-06-19',
-      location: 'CGV 강남',
-      description: '어벤져스 관람',
-      coupleId: 'couple1',
-      splitRatio: { user1: 0.5, user2: 0.5 }
-    },
-    {
-      id: '3',
-      title: '카페',
-      amount: 18000,
-      paidBy: 'user1',
-      category: 'food',
-      date: '2025-06-18',
-      location: '스타벅스',
-      coupleId: 'couple1',
-      splitRatio: { user1: 0.5, user2: 0.5 }
-    },
-    {
-      id: '4',
-      title: '쇼핑',
-      amount: 120000,
-      paidBy: 'user2',
-      category: 'shopping',
-      date: '2025-06-15',
-      location: '롯데백화점',
-      description: '커플 옷 쇼핑',
-      coupleId: 'couple1',
-      splitRatio: { user1: 0.5, user2: 0.5 }
-    }
-  ],
+  budgetItems: [],
+  // 🎯 상태 업데이트 함수
+  setBudgetItems: (items) => {
+    set({ budgetItems: items });
+  },
+
   currentMonthStats: {
     totalSpent: 0,
     byUser: {},
@@ -108,17 +64,27 @@ export const useBudgetStore = create<BudgetStore>((set, get) => ({
   calculateStats: (month) => {
     const { budgetItems } = get();
     const targetMonth = month || new Date().toISOString().slice(0, 7); // YYYY-MM
+    if (!budgetItems) {
+      // ✅ 빈 상태 처리: 기본값 반환
+      return {
+        totalSpent: 0,
+        byUser: {},
+        byCategory: {},
+        monthlyData: [],
+      };
+    }
 
-    const monthItems = budgetItems.filter(item =>
-      item.date.startsWith(targetMonth)
+    const monthItems = budgetItems.filter((item) =>
+      item.expenseDate.startsWith(targetMonth)
     );
+
 
     const totalSpent = monthItems.reduce((sum, item) => sum + item.amount, 0);
 
     const byUser: { [userId: string]: number } = {};
     const byCategory: { [category: string]: number } = {};
 
-    monthItems.forEach(item => {
+    monthItems.forEach((item) => {
       // 실제 지불한 금액 계산
       byUser[item.paidBy] = (byUser[item.paidBy] || 0) + item.amount;
 
@@ -130,27 +96,28 @@ export const useBudgetStore = create<BudgetStore>((set, get) => ({
       totalSpent,
       byUser,
       byCategory,
-      monthlyData: []
+      monthlyData: [],
     };
   },
 
-  getUserExpenses: (userId, month) => {
+  getUserExpenses: (userId: string, month?: string) => {
     const { budgetItems } = get();
     const targetMonth = month || new Date().toISOString().slice(0, 7);
 
     return budgetItems
-      .filter(item => item.date.startsWith(targetMonth) && item.paidBy === userId)
+      .filter((item) => item.expenseDate.startsWith(targetMonth) && item.paidBy === userId)
       .reduce((sum, item) => sum + item.amount, 0);
   },
 
-  getCategoryExpenses: (category, month) => {
+  getCategoryExpenses: (category: string, month?: string) => {
     const { budgetItems } = get();
     const targetMonth = month || new Date().toISOString().slice(0, 7);
 
     return budgetItems
-      .filter(item => item.date.startsWith(targetMonth) && item.category === category)
+      .filter((item) => item.expenseDate.startsWith(targetMonth) && item.category === category)
       .reduce((sum, item) => sum + item.amount, 0);
   },
+
 
   getMonthlyData: (months = 6) => {
     const { budgetItems } = get();

@@ -53,6 +53,7 @@ interface AppState {
 
 // 백엔드 couple 응답 구조에 맞게 변환 함수
 const transformCoupleData = (backendCouple: any, currentUserId: string): Couple => {
+  console.log('backendCouple:', backendCouple);
   const users = [
     {
       id: backendCouple.inviterId,

@@ -1,19 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
   Dimensions,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../../store/themeStore';
 import { useBudgetStore } from '../../store/budgetStore';
 import { useAppStore } from '../../store/appStore';
 import { CustomScrollView } from '../../components/CustomScrollView.tsx';
+import { budgetService } from '../../services/BudgetService';
 
 const { width } = Dimensions.get('window');
 
@@ -256,15 +255,15 @@ const createStyles = (colors: any) => StyleSheet.create({
 
 export function BudgetScreen({ navigation }: any) {
   const colors = useTheme();
-  const { budgetItems, calculateStats, getUserExpenses, getCategoryExpenses } = useBudgetStore();
+  const { budgetItems, calculateStats, getUserExpenses, getCategoryExpenses, setBudgetItems } = useBudgetStore();
   const { couple } = useAppStore();
-  const [selectedMonth, setSelectedMonth] = useState(new Date());
-
   // users는 couple.users에서 가져옴
   const users = couple?.users || [];
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+
+  console.log('couple ' , couple)
 
   const currentMonthKey = selectedMonth.toISOString().slice(0, 7);
-  const stats = calculateStats(currentMonthKey);
 
   const categoryData = [
     { key: 'food', label: '식비', icon: 'restaurant', color: colors.accent1 },
@@ -274,6 +273,20 @@ export function BudgetScreen({ navigation }: any) {
     { key: 'travel', label: '여행', icon: 'flight', color: '#9C27B0' },
     { key: 'other', label: '기타', icon: 'more-horiz', color: '#607D8B' },
   ];
+
+  // 데이터 Fetch 후 상태 업데이트
+  useEffect(() => {
+    const fetchBudgetItems = async () => {
+      const items = await budgetService.getBudgetItems(currentMonthKey);
+      console.log('items ', items.data)
+      setBudgetItems(items.data);
+    };
+
+    fetchBudgetItems();
+  }, [currentMonthKey, setBudgetItems]);
+
+  const stats = calculateStats(currentMonthKey);
+
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('ko-KR', {
@@ -298,10 +311,15 @@ export function BudgetScreen({ navigation }: any) {
     navigation.navigate('BudgetAdd');
   };
 
-  const recentItems = budgetItems
-    .filter(item => item.date.startsWith(currentMonthKey))
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5);
+  const recentItems =
+    Array.isArray(budgetItems) // ✅ 배열인지 확인
+      ? budgetItems
+        .filter((item) => item.expenseDate.startsWith(currentMonthKey))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 5)
+      : []; // 배열이 아닌 경우 빈 배열 반환
+
+
 
   // 정산 계산
   const calculateBalance = () => {
@@ -471,7 +489,7 @@ export function BudgetScreen({ navigation }: any) {
                   </View>
                   <View style={styles.recentDetails}>
                     <Text style={styles.recentInfo}>
-                      {new Date(item.date).toLocaleDateString('ko-KR')} • {user?.name || '알 수 없음'}
+                      {new Date(item.expenseDate).toLocaleDateString('ko-KR')} • {user?.name || '알 수 없음'}
                     </Text>
                     <Text style={styles.recentCategory}>{category?.label || item.category}</Text>
                   </View>

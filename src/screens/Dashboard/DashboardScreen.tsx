@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -14,6 +14,7 @@ import { AnniversaryCard } from '../../components/anniversary/AnniversaryCard';
 import { UpcomingSchedules } from '../../components/calendar/UpcomingSchedules';
 import { BudgetSummary } from '../../components/budget/BudgetSummary';
 import { CustomScrollView } from '../../components/CustomScrollView.tsx';
+import { useFocusEffect } from '@react-navigation/native';
 
 const createStyles = (colors: any) => StyleSheet.create({
   title: {
@@ -179,13 +180,16 @@ export function DashboardScreen({ navigation }: any) {
   const styles = createStyles(colors);
 
   // ✅ 컴포넌트 마운트 시 대시보드 데이터 로드 확인
-  useEffect(() => {
-    console.log('🎯 DashboardScreen mounted, dashboardData:', !!dashboardData);
-    if (!dashboardData && user) {
-      console.log('📡 Loading dashboard data...');
-      loadDashboardData();
-    }
-  }, [user, dashboardData, loadDashboardData]);
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        loadDashboardData().catch((error) =>
+          console.error('대시보드 데이터를 가져오는 중 오류 발생:', error)
+        );
+      }
+    }, [user, loadDashboardData])
+  );
+
 
   // 🔥 로그인이 안 되어 있으면 로그인 필요 메시지
   if (!user) {

@@ -1,24 +1,24 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
+  Alert,
+  Modal,
+  SafeAreaView,
   StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
-  Alert,
-  ScrollView,
-  Modal,
+  View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
-import { format, isToday, isYesterday, isTomorrow } from 'date-fns';
+import { format, isToday, isTomorrow, isYesterday } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useTheme } from '../../store/themeStore';
 import { useBudgetStore } from '../../store/budgetStore';
 import { useAppStore } from '../../store/appStore';
 import { BudgetItem } from '../../types';
 import { CustomScrollView } from '../../components/CustomScrollView.tsx';
+import { budgetService } from '../../services/BudgetService.ts';
 
 // 🇰🇷 date-fns를 사용한 한국어 로케일 설정
 LocaleConfig.locales['ko'] = {
@@ -306,7 +306,7 @@ export function BudgetAddScreen({ navigation }: any) {
     { key: 'other', label: '기타', icon: 'more-horiz' },
   ] as const;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title.trim()) {
       Alert.alert('알림', '지출 내용을 입력해주세요.');
       return;
@@ -322,20 +322,6 @@ export function BudgetAddScreen({ navigation }: any) {
       return;
     }
 
-    const splitRatio: { [userId: string]: number } = {};
-    if (splitType === 'equal') {
-      const ratio = 1 / users.length;
-      users.forEach(user => {
-        splitRatio[user.id] = ratio;
-      });
-    } else {
-      // 기본적으로 균등 분할로 설정 (커스텀 기능은 추후 확장)
-      const ratio = 1 / users.length;
-      users.forEach(user => {
-        splitRatio[user.id] = ratio;
-      });
-    }
-
     const newBudgetItem: Omit<BudgetItem, 'id'> = {
       title: title.trim(),
       amount: parseFloat(amount),
@@ -345,19 +331,38 @@ export function BudgetAddScreen({ navigation }: any) {
       location: location.trim() || undefined,
       description: description.trim() || undefined,
       coupleId: couple?.id || 'couple1',
-      splitRatio,
     };
 
-    addBudgetItem(newBudgetItem);
+    try {
+      const response = await budgetService.addBudgetItem(newBudgetItem);
 
-    Alert.alert(
-      '완료! 💰',
-      '새로운 지출이 등록되었습니다.',
-      [
-        { text: '확인', onPress: () => navigation.goBack() }
-      ]
-    );
+      if (response.success) {
+        Alert.alert(
+          '완료!',
+          '새로운 지출이 등록되었습니다.',
+          [
+            {
+              text: '확인',
+              onPress: () => {
+                navigation.navigate('Main', {
+                  screen: 'Budget',   // Main 탭 내 Budget 화면
+                  params: { refresh: true }, // 데이터 갱신 플래그 전달
+                });
+
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert('등록 실패', response.message || '지출 등록에 실패했습니다.');
+      }
+
+    } catch (error) {
+      Alert.alert('에러', '지출 등록 중 오류가 발생했습니다.');
+      console.error('handleSave error:', error);
+    }
   };
+
 
   // 📅 date-fns를 사용한 날짜 포맷팅
   const formatDate = (date: Date) => {

@@ -51,11 +51,10 @@ export interface BudgetItem {
   amount: number;
   paidBy: string; // User ID
   category: 'food' | 'entertainment' | 'transport' | 'shopping' | 'travel' | 'health' | 'other';
-  date: string; // YYYY-MM-DD
+  expenseDate: string; // YYYY-MM-DD
   location?: string;
   description?: string;
   coupleId: string;
-  splitRatio?: { [userId: string]: number }; // 분할 비율
   receipt?: string; // 영수증 이미지 URL
 }
 

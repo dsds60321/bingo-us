@@ -57,8 +57,8 @@ export const API_ENDPOINTS = {
 
   // 가계부 관련
   budget: {
-    list: '/budget',
-    create: '/budget',
+    list: '/budget-items',
+    create: '/budget-items',
     update: '/budget',
     delete: '/budget',
   },
