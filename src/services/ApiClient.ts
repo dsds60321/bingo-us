@@ -33,6 +33,7 @@ class ApiClient {
         try {
           console.log('🔍 요청 인터셉터 시작');
           console.log('📋 현재 캐시된 세션키:', this.currentSessionKey ? 'EXISTS' : 'NULL');
+          console.log('전체키  ' , await AsyncStorage.getAllKeys() )
 
           // 1. 캐시된 세션키 먼저 확인
           let sessionKey = this.currentSessionKey;

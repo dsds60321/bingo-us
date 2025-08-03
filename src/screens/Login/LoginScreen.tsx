@@ -15,6 +15,8 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../../store/themeStore';
 import { useAppStore } from '../../store/appStore';
 import { CustomScrollView } from '../../components/CustomScrollView.tsx';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { apiClient } from '../../services/ApiClient.ts';
 
 const createStyles = (colors: any) =>
   StyleSheet.create({
@@ -223,6 +225,18 @@ export function LoginScreen({ navigation }: any) {
       if (success) {
         // 로그인 성공 - 네비게이션은 AppNavigator에서 자동 처리
         console.log('✅ 로그인 성공!');
+        // 🔍 로그인 성공 후 즉시 AsyncStorage 확인
+        const sessionKey = await AsyncStorage.getItem('sessionKey');
+        const allKeys = await AsyncStorage.getAllKeys();
+
+        console.log('📋 로그인 후 AsyncStorage 상태:', {
+          sessionKey: sessionKey ? 'EXISTS (' + sessionKey.substring(0, 20) + '...)' : 'NULL',
+          allKeys: allKeys
+        });
+
+        // ApiClient 상태도 확인
+        await apiClient.debugCurrentState();
+
       } else {
         Alert.alert('로그인 실패', '아이디 또는 비밀번호를 확인해주세요.');
       }

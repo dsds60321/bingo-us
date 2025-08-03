@@ -60,6 +60,53 @@ class BudgetService {
   }
 
   /**
+   * 월별 예산 통계 가져오기
+   * @param month 월 정보 (yyyy-MM 형식)
+   * @returns 월별 통계 데이터
+   */
+  async getBudgetStats(month: string): Promise<ApiResponse<{
+    total: number;
+    byUser: { [userId: string]: number };
+    items: BudgetItem[];
+  }>> {
+    try {
+      const result = await this.getBudgetItems(month);
+
+      if (!result.success || !result.data) {
+        return {
+          success: false,
+          message: result.message,
+          data: { total: 0, byUser: {}, items: [] }
+        };
+      }
+
+      const items = result.data;
+      const total = items.reduce((sum, item) => sum + item.amount, 0);
+
+      const byUser: { [userId: string]: number } = {};
+      items.forEach(item => {
+        if (!byUser[item.paidBy]) {
+          byUser[item.paidBy] = 0;
+        }
+        byUser[item.paidBy] += item.amount;
+      });
+
+      return {
+        success: true,
+        data: { total, byUser, items }
+      };
+    } catch (error: any) {
+      console.error('Budget stats error:', error);
+      return {
+        success: false,
+        message: '예산 통계를 가져오는데 실패했습니다.',
+        data: { total: 0, byUser: {}, items: [] }
+      };
+    }
+  }
+
+
+  /**
    * 예산 항목 등록하기
    * @param budgetItem 등록할 예산 항목 데이터
    * @returns 등록 결과 응답

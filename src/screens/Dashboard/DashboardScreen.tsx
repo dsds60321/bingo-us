@@ -276,6 +276,8 @@ export function DashboardScreen({ navigation }: any) {
     }, [user, loadDashboardData])
   );
 
+
+
   // 🔥 로그인이 안 되어 있으면 로그인 필요 메시지
   if (!user) {
     return (
@@ -309,6 +311,8 @@ export function DashboardScreen({ navigation }: any) {
   });
 
   const budgetSummary = getTotalBudget();
+  const budgetItems = dashboardData?.budget?.items || [];
+
 
   // 🔥 커플이 없을 때의 파트너 이름 처리
   const partnerName = couple

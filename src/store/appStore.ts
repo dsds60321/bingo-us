@@ -1,9 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, Couple, Anniversary, Schedule, BudgetItem } from '../types';
 import { authService } from '../services/AuthService';
 import { dashboardService, ProcessedDashboardData } from '../services/DashboardService';
 import { addDays, format } from 'date-fns';
+import { budgetService } from '../services/BudgetService.ts';
 
 interface SignupData {
   username: string;
@@ -312,43 +314,46 @@ export const useAppStore = create<AppState>()(
 
       // 🎯 대시보드 데이터 로드 - ✅ 수정된 구조에 맞게 업데이트
       loadDashboardData: async () => {
-        const { isAuthenticated } = get();
-        console.log('🔍 loadDashboardData 시작:', { isAuthenticated });
-
-        if (!isAuthenticated) return;
-
         set({ isLoadingDashboard: true });
 
         try {
-          console.log('📡 dashboardService.getDashboardData 호출 중...');
-          const result = await dashboardService.getDashboardData();
-          console.log('----- result ----', result)
-          console.log('📨 dashboardService 응답:', {
-            success: result.success,
-            hasData: !!result.data,
-            upcomingAnniversaries: result.data?.upcomingAnniversaries?.length,
-            todaySchedules: result.data?.todaySchedules?.length,
-            tomorrowSchedules: result.data?.tomorrowSchedules?.length,
-          });
+          const { user, couple } = get();
+          if (!user) {
+            throw new Error('사용자 정보가 없습니다');
+          }
 
-          if (result.success && result.data) {
-            console.log('✅ 대시보드 데이터 저장 중...');
+          const currentMonth = format(new Date(), 'yyyy-MM');
+
+          // 병렬로 데이터 가져오기
+          const [dashboardResult, budgetResult] = await Promise.all([
+            dashboardService.getDashboardData(user.id),
+            budgetService.getBudgetStats(currentMonth) // ✅ 새로운 함수 사용
+          ]);
+
+          if (dashboardResult.success && dashboardResult.data) {
+            // 예산 데이터도 dashboardData에 포함
+            const enhancedDashboardData = {
+              ...dashboardResult.data,
+              budget: budgetResult.success ? budgetResult.data : { total: 0, byUser: {}, items: [] }
+            };
+
             set({
-              dashboardData: result.data,
-              anniversaries: result.data.anniversaries,
-              schedules: result.data.allSchedules,
+              dashboardData: enhancedDashboardData,
+              budgetItems: budgetResult.data?.items || [], // budgetItems도 업데이트
+              isLoadingDashboard: false
             });
-            console.log('✅ 대시보드 데이터 저장 완료');
           } else {
-            console.error('❌ 대시보드 데이터 로드 실패:', result.message);
+            throw new Error(dashboardResult.message || '대시보드 데이터를 가져올 수 없습니다');
           }
         } catch (error) {
-          console.error('💥 Dashboard load error:', error);
-        } finally {
-          set({ isLoadingDashboard: false });
-          console.log('🏁 loadDashboardData 완료');
+          console.error('대시보드 데이터 로드 실패:', error);
+          set({
+            dashboardData: null,
+            isLoadingDashboard: false
+          });
         }
       },
+
 
 
       // 🔄 대시보드 새로 고침
@@ -471,32 +476,37 @@ export const useAppStore = create<AppState>()(
       },
 
       getTotalBudget: () => {
-        const { budgetItems, couple } = get();
+        const { dashboardData } = get();
 
+        // ✅ dashboardData에서 budget 정보 가져오기
+        if (dashboardData?.budget) {
+          return dashboardData.budget;
+        }
+
+        // ✅ fallback으로 budgetItems에서 계산
+        const { budgetItems } = get();
         if (!budgetItems || budgetItems.length === 0) {
           return { total: 0, byUser: {} };
         }
 
         const currentMonth = format(new Date(), 'yyyy-MM');
-
         const thisMonthItems = budgetItems.filter(item =>
-          item.date && item.date.startsWith(currentMonth)
+          item.expenseDate && item.expenseDate.startsWith(currentMonth) // ✅ expenseDate 사용
         );
 
         const total = thisMonthItems.reduce((sum, item) => sum + item.amount, 0);
 
         const byUser: { [userId: string]: number } = {};
-
-        if (couple && couple.users) {
-          couple.users.forEach(user => {
-            byUser[user.id] = thisMonthItems
-              .filter(item => item.paidBy === user.id)
-              .reduce((sum, item) => sum + item.amount, 0);
-          });
-        }
+        thisMonthItems.forEach(item => {
+          if (!byUser[item.paidBy]) {
+            byUser[item.paidBy] = 0;
+          }
+          byUser[item.paidBy] += item.amount;
+        });
 
         return { total, byUser };
       },
+
 
       // 🔥 반성문 헬퍼 함수들 추가
       getPendingReflections: () => {

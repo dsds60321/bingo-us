@@ -2,6 +2,7 @@ import { AxiosResponse } from 'axios';
 import { API_ENDPOINTS } from '../constants/config';
 import { apiClient } from './ApiClient';
 import { format, addDays, startOfMonth, endOfMonth, isAfter, isBefore } from 'date-fns';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // 타입 정의 - 백엔드 응답 구조에 맞게 수정
 export interface DashboardData {
@@ -85,10 +86,17 @@ class DashboardService {
   // 🎯 Dashboard 메인 데이터 가져오기 및 가공
   async getDashboardData(): Promise<ApiResponse<ProcessedDashboardData>> {
     try {
+
+      const sessionKey = await AsyncStorage.getItem('sessionKey');
+      console.log('🔑 가져온 세션키:', sessionKey ? sessionKey.substring(0, 20) + '...' : 'NULL');
+
+
       // 통합 대시보드 API 호출
       const response: AxiosResponse<BackendResponse<DashboardData>> = await apiClient.get(
         API_ENDPOINTS.dashboard.main
       );
+
+      console.log('DashboardService Get dashboard data response:', response.data);
 
       if (response.data.code === '200') {
         const rawData = response.data.data;
