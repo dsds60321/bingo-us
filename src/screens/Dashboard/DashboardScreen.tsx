@@ -164,6 +164,90 @@ const createStyles = (colors: any) => StyleSheet.create({
     color: '#333',
     marginBottom: 2,
   },
+  // 반성문 섹션 스타일
+  reflectionCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 10,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  reflectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  reflectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    flex: 1,
+    marginRight: 10,
+  },
+  reflectionStatus: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  statusPending: {
+    backgroundColor: '#FEF3C7',
+  },
+  statusApproved: {
+    backgroundColor: '#D1FAE5',
+  },
+  statusRejected: {
+    backgroundColor: '#FEE2E2',
+  },
+  reflectionStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  statusTextPending: {
+    color: '#92400E',
+  },
+  statusTextApproved: {
+    color: '#065F46',
+  },
+  statusTextRejected: {
+    color: '#991B1B',
+  },
+  reflectionMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  reflectionAuthor: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  reflectionDate: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  reflectionSummary: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+  },
+  reflectionCount: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: colors.primary,
+    marginBottom: 5,
+  },
+  reflectionCountLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 15,
+  },
 });
 
 export function DashboardScreen({ navigation }: any) {
@@ -175,6 +259,8 @@ export function DashboardScreen({ navigation }: any) {
     isLoadingDashboard,      // ✅ 로딩 상태
     loadDashboardData,       // ✅ 데이터 로드 함수
     getTotalBudget,
+    getPendingReflections,   // 반성문 헬퍼 함수
+    getRecentReflections,    // 반성문 헬퍼 함수
   } = useAppStore();
 
   const styles = createStyles(colors);
@@ -189,7 +275,6 @@ export function DashboardScreen({ navigation }: any) {
       }
     }, [user, loadDashboardData])
   );
-
 
   // 🔥 로그인이 안 되어 있으면 로그인 필요 메시지
   if (!user) {
@@ -208,6 +293,10 @@ export function DashboardScreen({ navigation }: any) {
   const todaySchedules = dashboardData?.todaySchedules || [];
   const tomorrowSchedules = dashboardData?.tomorrowSchedules || [];
 
+  // 반성문 데이터
+  const pendingReflections = getPendingReflections();
+  const recentReflections = getRecentReflections();
+
   console.log('🔍 Dashboard Data Status:', {
     hasDashboardData: !!dashboardData,
     isLoading: isLoadingDashboard,
@@ -215,6 +304,8 @@ export function DashboardScreen({ navigation }: any) {
     todaySchedulesCount: todaySchedules.length,
     tomorrowSchedulesCount: tomorrowSchedules.length,
     daysFromStart,
+    pendingReflectionsCount: pendingReflections.length,
+    recentReflectionsCount: recentReflections.length,
   });
 
   const budgetSummary = getTotalBudget();
@@ -223,6 +314,22 @@ export function DashboardScreen({ navigation }: any) {
   const partnerName = couple
     ? couple.users.find(u => u.id !== user.id)?.name || '파트너'
     : null;
+
+  // 반성문 상태별 텍스트
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'pending': return '결재 대기';
+      case 'approved': return '승인됨';
+      case 'rejected': return '반려됨';
+      default: return '알 수 없음';
+    }
+  };
+
+  // 반성문 날짜 포맷
+  const formatReflectionDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return format(date, 'MM/dd');
+  };
 
   return (
     <CustomScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -250,6 +357,8 @@ export function DashboardScreen({ navigation }: any) {
           <Text style={styles.debugText}>• Today Schedules: {todaySchedules.length}</Text>
           <Text style={styles.debugText}>• Tomorrow Schedules: {tomorrowSchedules.length}</Text>
           <Text style={styles.debugText}>• Days From Start: {daysFromStart}</Text>
+          <Text style={styles.debugText}>• Pending Reflections: {pendingReflections.length}</Text>
+          <Text style={styles.debugText}>• Recent Reflections: {recentReflections.length}</Text>
         </View>
       )}
 
@@ -268,6 +377,75 @@ export function DashboardScreen({ navigation }: any) {
           >
             <Text style={styles.inviteButtonText}>커플 초대하기</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {/* 반성문 섹션 - 커플이 있을 때만 표시 */}
+      {couple && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>반성문 현황</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Reflection')}>
+              <Text style={styles.seeMore}>더보기</Text>
+            </TouchableOpacity>
+          </View>
+
+          {pendingReflections.length > 0 ? (
+            <View style={styles.reflectionSummary}>
+              <Text style={styles.reflectionCount}>{pendingReflections.length}</Text>
+              <Text style={styles.reflectionCountLabel}>결재 요청 대기 중</Text>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => navigation.navigate('Reflection')}
+              >
+                <Text style={styles.addButtonText}>반성문 확인하기</Text>
+              </TouchableOpacity>
+            </View>
+          ) : recentReflections.length > 0 ? (
+            <View>
+              {recentReflections.map((reflection) => (
+                <View key={reflection.id} style={styles.reflectionCard}>
+                  <View style={styles.reflectionHeader}>
+                    <Text style={styles.reflectionTitle} numberOfLines={1}>
+                      {reflection.incident.substring(0, 20)}...
+                    </Text>
+                    <View style={[
+                      styles.reflectionStatus,
+                      reflection.status === 'pending' && styles.statusPending,
+                      reflection.status === 'approved' && styles.statusApproved,
+                      reflection.status === 'rejected' && styles.statusRejected,
+                    ]}>
+                      <Text style={[
+                        styles.reflectionStatusText,
+                        reflection.status === 'pending' && styles.statusTextPending,
+                        reflection.status === 'approved' && styles.statusTextApproved,
+                        reflection.status === 'rejected' && styles.statusTextRejected,
+                      ]}>
+                        {getStatusText(reflection.status)}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.reflectionMeta}>
+                    <Text style={styles.reflectionAuthor}>{reflection.author}</Text>
+                    <Text style={styles.reflectionDate}>
+                      {formatReflectionDate(reflection.createdAt)}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Icon name="assignment" size={48} color="#ccc" />
+              <Text style={styles.emptyText}>아직 작성된 반성문이 없습니다</Text>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => navigation.navigate('Reflection')}
+              >
+                <Text style={styles.addButtonText}>반성문 작성하기</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
 

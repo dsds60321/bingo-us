@@ -271,6 +271,7 @@ export function BudgetScreen({ navigation }: any) {
     { key: 'transport', label: '교통', icon: 'directions-car', color: colors.secondary },
     { key: 'shopping', label: '쇼핑', icon: 'shopping-bag', color: colors.primary },
     { key: 'travel', label: '여행', icon: 'flight', color: '#9C27B0' },
+    { key: 'health', label: '건강', icon: 'local-hospital', color: '#9C27B0' },
     { key: 'other', label: '기타', icon: 'more-horiz', color: '#607D8B' },
   ];
 
@@ -311,14 +312,17 @@ export function BudgetScreen({ navigation }: any) {
     navigation.navigate('BudgetAdd');
   };
 
+  const monthItems = Array.isArray(budgetItems) // ✅ 배열인지 확인
+    ? budgetItems
+      .filter((item) => item.expenseDate.startsWith(currentMonthKey))
+  : [];
+
   const recentItems =
-    Array.isArray(budgetItems) // ✅ 배열인지 확인
-      ? budgetItems
-        .filter((item) => item.expenseDate.startsWith(currentMonthKey))
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    Array.isArray(monthItems) // ✅ 배열인지 확인
+      ? monthItems
+        .sort((a, b) => new Date(b.expenseDate).getTime() - new Date(a.expenseDate).getTime()) // ✅ expenseDate 기준 내림차순
         .slice(0, 5)
       : []; // 배열이 아닌 경우 빈 배열 반환
-
 
 
   // 정산 계산
@@ -398,7 +402,7 @@ export function BudgetScreen({ navigation }: any) {
               <View style={styles.statIcon}>
                 <Icon name="trending-up" size={24} color={colors.secondary} />
               </View>
-              <Text style={styles.statValue}>{recentItems.length}</Text>
+              <Text style={styles.statValue}>{monthItems.length}</Text>
               <Text style={styles.statLabel}>지출 건수</Text>
             </View>
           </View>

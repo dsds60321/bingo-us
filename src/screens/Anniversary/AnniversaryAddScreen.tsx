@@ -329,7 +329,7 @@ export function AnniversaryAddScreen({ navigation }: any) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [tempSelectedDate, setTempSelectedDate] = useState(new Date()); // 캘린더에서 임시로 선택된 날짜
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [type, setType] = useState<'anniversary' | 'birthday' | 'custom'>('anniversary');
+  const [type, setType] = useState<'anniversary' | 'birthday' | 'special'>('anniversary');
   const [isRecurring, setIsRecurring] = useState(true);
   const [description, setDescription] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -352,7 +352,7 @@ export function AnniversaryAddScreen({ navigation }: any) {
       apiType: 'BIRTHDAY' as const,
     },
     {
-      key: 'custom',
+      key: 'special',
       label: '특별한 날',
       emoji: '🎉',
       color: colors.secondary,

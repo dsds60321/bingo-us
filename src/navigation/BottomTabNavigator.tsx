@@ -9,6 +9,7 @@ import { CalendarScreen } from '../screens/Calendar/CalendarScreen';
 import { BudgetScreen } from '../screens/Budget/BudgetScreen';
 import { BetScreen } from '../screens/Bet/BetScreen';
 import { SettingsScreen } from '../screens/Settings/SettingsScreen';
+import { ReflectionScreen } from '../screens/Reflection/ReflectionScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -34,11 +35,17 @@ export function BottomTabNavigator() {
       icon: 'account-balance-wallet',
       label: '가계부',
     },
+    // {
+    //   name: 'Bet',
+    //   component: BetScreen,
+    //   icon: 'casino',
+    //   label: '내기',
+    // },
     {
-      name: 'Bet',
-      component: BetScreen,
-      icon: 'casino',
-      label: '내기',
+      name: 'Reflection',
+      component: ReflectionScreen,
+      icon: 'assignment',
+      label: '반성문',
     },
     {
       name: 'Settings',
