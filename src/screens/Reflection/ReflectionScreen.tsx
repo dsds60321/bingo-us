@@ -26,7 +26,9 @@ export function ReflectionScreen() {
   const [selectedReflection, setSelectedReflection] = useState<Reflection | null>(null);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
   const [isApprovalModalVisible, setIsApprovalModalVisible] = useState(false);
+  const [isFeedbackModalVisible, setIsFeedbackModalVisible] = useState(false); // 피드백 모달 상태 추가
   const [pendingApproval, setPendingApproval] = useState<{id: number, approved: boolean} | null>(null);
+  const [feedback, setFeedback] = useState(''); // 피드백 입력 상태 추가
   const [approvalAnimValue] = useState(new Animated.Value(0));
   const [stampRotation] = useState(new Animated.Value(0));
   const [stampScale] = useState(new Animated.Value(0));
@@ -48,7 +50,6 @@ export function ReflectionScreen() {
   // 반성문 목록 로드
   const loadReflections = async () => {
 
-    // console.log('coupleId ' ,couple.users.filter(user -> user.id !== user.id).id)
     if (!couple?.id) {
       console.warn('Couple ID not found');
       return;
@@ -57,8 +58,6 @@ export function ReflectionScreen() {
     try {
       setIsLoading(true);
       const response = await reflectionService.getReflections();
-
-      console.log('----- ' , response)
 
       if (response.success && response.data) {
         setReflections(response.data);
@@ -173,7 +172,7 @@ export function ReflectionScreen() {
   };
 
   // 결재 처리 - 단계별 실행
-  const handleApproval = async (reflectionId: number, approved: boolean) => {
+  const handleApproval = async (reflectionId: number, approved: boolean, feedbackText?: string) => {
     if (!user?.id) {
       Alert.alert('오류', '사용자 정보가 없습니다.');
       return;
@@ -196,8 +195,8 @@ export function ReflectionScreen() {
     // 4단계: 백엔드 API 호출
     try {
       const approvalData = {
-        approver_user_id: user.id,
         status: approved ? 'APPROVED' as const : 'REJECTED' as const,
+        ...(feedbackText && { feedback: feedbackText }),
       };
 
       const response = await reflectionService.approveReflection(reflectionId, approvalData);
@@ -238,23 +237,53 @@ export function ReflectionScreen() {
     }
   };
 
+  // 피드백 제출 처리
+  const handleFeedbackSubmit = () => {
+    if (!feedback.trim()) {
+      Alert.alert('알림', '반려 사유를 입력해주세요.');
+      return;
+    }
+
+    const reflection = reflections.find(r => r.id === pendingApproval?.id);
+    if (!reflection) {
+      Alert.alert('오류', '반성문을 찾을 수 없습니다.');
+      return;
+    }
+
+    // 피드백 모달 닫기
+    setIsFeedbackModalVisible(false);
+
+    // 결재 처리
+    handleApproval(reflection.id, false, feedback);
+
+    // 피드백 초기화
+    setFeedback('');
+  };
+
   // 결재 확인 Alert - 신중한 결정을 위해 추가
   const confirmApproval = (reflectionId: number, approved: boolean) => {
     const action = approved ? '승인' : '반려';
     const reflection = reflections.find(r => r.id === reflectionId);
 
-    Alert.alert(
-      `반성문 ${action}`,
-      `"${reflection?.incident}"에 대한 반성문을 ${action}하시겠습니까?`,
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: action,
-          style: approved ? 'default' : 'destructive',
-          onPress: () => handleApproval(reflectionId, approved)
-        }
-      ]
-    );
+    if (approved) {
+      // 승인하는 경우 기존 로직 유지
+      Alert.alert(
+        `반성문 ${action}`,
+        `"${reflection?.incident}"에 대한 반성문을 ${action}하시겠습니까?`,
+        [
+          { text: '취소', style: 'cancel' },
+          {
+            text: action,
+            style: 'default',
+            onPress: () => handleApproval(reflectionId, approved)
+          }
+        ]
+      );
+    } else {
+      // 반려하는 경우 피드백 모달 열기
+      setPendingApproval({ id: reflectionId, approved: false });
+      setIsFeedbackModalVisible(true);
+    }
   };
 
   const getCurrentDate = () => {
@@ -305,6 +334,71 @@ export function ReflectionScreen() {
     if (!reflection.approver_user_id) return '';
     return reflection.approver_user_id === user?.id ? user?.name || '나' : '상대방님';
   };
+
+  // 피드백 입력 모달
+  const renderFeedbackModal = () => (
+    <Modal
+      visible={isFeedbackModalVisible}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setIsFeedbackModalVisible(false)}
+    >
+      <View style={styles.feedbackOverlay}>
+        <View style={[styles.feedbackContainer, { backgroundColor: colors.surface }]}>
+          <View style={styles.feedbackHeader}>
+            <Text style={[styles.feedbackTitle, { color: colors.text }]}>
+              반려 사유 입력
+            </Text>
+            <TouchableOpacity
+              style={styles.feedbackCloseButton}
+              onPress={() => setIsFeedbackModalVisible(false)}
+            >
+              <Icon name="close" size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={[styles.feedbackDescription, { color: colors.textSecondary }]}>
+            반성문을 반려하는 이유를 상세히 작성해주세요.
+            작성자가 이를 참고하여 더 나은 반성문을 작성할 수 있습니다.
+          </Text>
+
+          <TextInput
+            style={[
+              styles.feedbackInput,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+                color: colors.text,
+              },
+            ]}
+            value={feedback}
+            onChangeText={setFeedback}
+            placeholder="반려 사유를 구체적으로 작성해주세요."
+            placeholderTextColor={colors.textSecondary}
+            multiline
+            numberOfLines={6}
+            textAlignVertical="top"
+          />
+
+          <View style={styles.feedbackButtons}>
+            <TouchableOpacity
+              style={[styles.feedbackButton, styles.feedbackCancelButton]}
+              onPress={() => setIsFeedbackModalVisible(false)}
+            >
+              <Text style={styles.feedbackCancelButtonText}>취소</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.feedbackButton, styles.feedbackSubmitButton]}
+              onPress={handleFeedbackSubmit}
+            >
+              <Icon name="send" size={16} color="#fff" />
+              <Text style={styles.feedbackSubmitButtonText}>반려하기</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 
   const renderReflectionList = () => (
     <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -414,9 +508,16 @@ export function ReflectionScreen() {
                 </Text>
               )}
               {reflection.status === 'REJECTED' && (
-                <Text style={[styles.feedbackText, { color: '#EF4444' }]} numberOfLines={2}>
-                  {getApproverName(reflection)}님이 {reflection.approved_at ? formatDate(reflection.approved_at) : ''}에 반려
-                </Text>
+                <View>
+                  <Text style={[styles.feedbackText, { color: '#EF4444' }]} numberOfLines={2}>
+                    {getApproverName(reflection)}님이 {reflection.approved_at ? formatDate(reflection.approved_at) : ''}에 반려
+                  </Text>
+                  {reflection.feedback && (
+                    <Text style={[styles.feedbackContent, { color: colors.textSecondary }]} numberOfLines={2}>
+                      반려 사유: {reflection.feedback}
+                    </Text>
+                  )}
+                </View>
               )}
             </TouchableOpacity>
           ))}
@@ -731,6 +832,18 @@ export function ReflectionScreen() {
                     {selectedReflection.improvement}
                   </Text>
                 </View>
+
+                {/* 반려 사유 표시 */}
+                {selectedReflection.status === 'REJECTED' && selectedReflection.feedback && (
+                  <View style={styles.detailSection}>
+                    <Text style={[styles.detailSectionTitle, { color: '#EF4444' }]}>
+                      반려 사유
+                    </Text>
+                    <Text style={[styles.detailSectionContent, { color: colors.text, backgroundColor: '#FEF2F2', padding: 12, borderRadius: 8 }]}>
+                      {selectedReflection.feedback}
+                    </Text>
+                  </View>
+                )}
               </View>
 
               {/* 결재 버튼 (상세보기에서도 표시) */}
@@ -819,6 +932,9 @@ export function ReflectionScreen() {
 
       {/* 결재 애니메이션 모달 */}
       {renderApprovalAnimationModal()}
+
+      {/* 피드백 입력 모달 */}
+      {renderFeedbackModal()}
     </SafeAreaView>
   );
 }
@@ -977,28 +1093,101 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 8,
   },
+  feedbackContent: {
+    fontSize: 12,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  // 피드백 모달 스타일
+  feedbackOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  feedbackContainer: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 16,
+    padding: 20,
+  },
+  feedbackHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  feedbackTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  feedbackCloseButton: {
+    padding: 4,
+  },
+  feedbackDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  feedbackInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    minHeight: 120,
+    marginBottom: 20,
+  },
+  feedbackButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  feedbackButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  feedbackCancelButton: {
+    backgroundColor: '#6B7280',
+  },
+  feedbackSubmitButton: {
+    backgroundColor: '#EF4444',
+  },
+  feedbackCancelButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  feedbackSubmitButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   // 작성 폼
   approvalSection: {
     borderRadius: 16,
     padding: 20,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    marginBottom: 16,
   },
   approvalHeader: {
     marginBottom: 16,
   },
   approvalBox: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
   },
   approvalLabel: {
     fontSize: 16,
     fontWeight: '600',
-    marginTop: 8,
   },
   approvalRightSection: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
@@ -1010,47 +1199,38 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     gap: 8,
-    minWidth: 120,
-    justifyContent: 'center',
   },
   approverName: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   stampArea: {
-    width: 80,
-    height: 80,
+    width: 60,
+    height: 60,
     borderWidth: 2,
-    borderRadius: 40,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'transparent',
   },
   stampText: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: 'bold',
   },
-
-  // 기본 정보 섹션
   infoSection: {
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
-    paddingTop: 16,
-    gap: 12,
+    gap: 8,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   infoLabel: {
     fontSize: 14,
     fontWeight: '500',
-    width: 60,
+    minWidth: 60,
   },
   infoValue: {
     fontSize: 14,
-    flex: 1,
   },
   formSection: {
     borderRadius: 16,
@@ -1071,29 +1251,28 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
     textAlignVertical: 'top',
-    minHeight: 100,
   },
   signatureSection: {
     borderRadius: 16,
     padding: 20,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   signatureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
   },
   signatureLabel: {
     fontSize: 16,
+    fontWeight: '500',
   },
   signatureBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 16,
+    borderWidth: 1,
+    borderRadius: 8,
     gap: 8,
   },
   signatureName: {
@@ -1109,47 +1288,54 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
+    paddingHorizontal: 24,
     borderRadius: 12,
-    marginBottom: 16,
     gap: 8,
+    marginBottom: 20,
   },
   submitButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
   // 애니메이션 모달
   animationOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   animationContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
   },
   stampContainer: {
     marginBottom: 20,
   },
   animatedStamp: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#fff',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
   },
   animatedStampText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: 'bold',
   },
   animationText: {
-    color: '#fff',
     fontSize: 24,
     fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
   },
   // 상세보기 모달
   modalHeader: {
@@ -1183,7 +1369,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   detailTitle: {
     fontSize: 20,
@@ -1191,7 +1377,7 @@ const styles = StyleSheet.create({
   },
   detailInfo: {
     gap: 4,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   detailLabel: {
     fontSize: 14,
@@ -1212,15 +1398,16 @@ const styles = StyleSheet.create({
   },
   detailApprovalButtons: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
+    gap: 12,
     marginTop: 24,
   },
   detailApprovalButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     borderRadius: 12,
     gap: 8,
   },

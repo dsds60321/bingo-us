@@ -67,7 +67,6 @@ export const API_ENDPOINTS = {
   reflection: {
     list: '/reflections',
     create: '/reflections',
-    approve: '/reflections/approve',
     stats: '/reflections/stats',
     update: '/reflections',
     delete: '/reflections',

@@ -13,6 +13,7 @@ export interface Reflection {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   approver_user_id?: number;
   approved_at?: string;
+  feedback?: string;
   created_at: string;
   updated_at: string;
 }
@@ -27,8 +28,8 @@ export interface CreateReflectionRequest {
 }
 
 export interface ApprovalRequest {
-  approver_user_id: number;
   status: 'APPROVED' | 'REJECTED';
+  feedback?: string;
 }
 
 export interface ReflectionStats {
@@ -114,6 +115,7 @@ class ReflectionService {
           reason: item.reason,
           improvement: item.improvement,
           status: item.status,
+          feedback: item.feedback,
           approved_at: item.approvedAt,
           created_at: item.createdAt,
           updated_at: item.updatedAt || item.createdAt
@@ -149,8 +151,18 @@ class ReflectionService {
    */
   async approveReflection(reflectionId: number, approvalData: ApprovalRequest): Promise<ApiResponse<void>> {
     try {
+
+      // REJECTED일 때 feedback이 필수인지 검증
+      if (approvalData.status === 'REJECTED' && !approvalData.feedback?.trim()) {
+        return {
+          success: false,
+          message: '반려 시 피드백을 입력해주세요.',
+        };
+      }
+
+
       const response: AxiosResponse<BackendResponse<void>> = await apiClient.put(
-        `${API_ENDPOINTS.reflection.approve}/${reflectionId}`,
+        `${API_ENDPOINTS.reflection.update}/${reflectionId}`,
         approvalData
       );
 
