@@ -311,8 +311,6 @@ export function DashboardScreen({ navigation }: any) {
   });
 
   const budgetSummary = getTotalBudget();
-  const budgetItems = dashboardData?.budget?.items || [];
-
 
   // 🔥 커플이 없을 때의 파트너 이름 처리
   const partnerName = couple
@@ -351,20 +349,6 @@ export function DashboardScreen({ navigation }: any) {
         )}
       </View>
 
-      {/* ✅ 디버그 정보 (개발 중에만 표시) */}
-      {__DEV__ && (
-        <View style={styles.debugContainer}>
-          <Text style={styles.debugText}>🔍 Dashboard Debug:</Text>
-          <Text style={styles.debugText}>• Dashboard Data: {dashboardData ? 'loaded' : 'null'}</Text>
-          <Text style={styles.debugText}>• Loading: {isLoadingDashboard ? 'true' : 'false'}</Text>
-          <Text style={styles.debugText}>• Upcoming Anniversaries: {upcomingAnniversaries.length}</Text>
-          <Text style={styles.debugText}>• Today Schedules: {todaySchedules.length}</Text>
-          <Text style={styles.debugText}>• Tomorrow Schedules: {tomorrowSchedules.length}</Text>
-          <Text style={styles.debugText}>• Days From Start: {daysFromStart}</Text>
-          <Text style={styles.debugText}>• Pending Reflections: {pendingReflections.length}</Text>
-          <Text style={styles.debugText}>• Recent Reflections: {recentReflections.length}</Text>
-        </View>
-      )}
 
       {/* 🔥 커플이 없을 때 초대 카드 표시 */}
       {!couple && (

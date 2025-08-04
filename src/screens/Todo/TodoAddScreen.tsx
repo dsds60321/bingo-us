@@ -16,6 +16,7 @@ import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { format, isToday, isYesterday, isTomorrow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useTheme } from '../../store/themeStore';
+import { scheduleService, ScheduleCreateInput } from '../../services/ScheduleService';
 
 // 🇰🇷 date-fns를 사용한 한국어 로케일 설정
 LocaleConfig.locales['ko'] = {
@@ -281,6 +282,7 @@ export function TodoAddScreen({ navigation }: any) {
   const [hasTime, setHasTime] = useState(false);
   const [selectedTime, setSelectedTime] = useState('09:00');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [isLoading, setIsLoading] = useState(false);
 
   const priorities = [
     { key: 'low', label: '낮음', color: colors.accent2, emoji: '😌' },
@@ -294,19 +296,51 @@ export function TodoAddScreen({ navigation }: any) {
     '19:00', '20:00', '21:00', '22:00'
   ];
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title.trim()) {
       Alert.alert('알림', '할 일 제목을 입력해주세요.');
       return;
     }
 
-    Alert.alert(
-      '완료! 🎉',
-      '새로운 할 일이 등록되었습니다.',
-      [
-        { text: '확인', onPress: () => navigation.goBack() }
-      ]
-    );
+    setIsLoading(true);
+
+    try {
+      // ✅ DDL에 맞게 데이터 구조 수정
+      const scheduleData: ScheduleCreateInput = {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        due_date: format(selectedDate, 'yyyy-MM-dd'),
+        due_time: hasTime ? selectedTime : undefined, // HH:mm 형식 (서비스에서 HH:mm:ss로 변환)
+        priority: priority,
+      };
+
+      const result = await scheduleService.addScheduleItem(scheduleData);
+
+      if (result.success) {
+        Alert.alert(
+          '완료! 🎉',
+          '새로운 할 일이 등록되었습니다.',
+          [
+            { text: '확인', onPress: () => navigation.goBack() }
+          ]
+        );
+      } else {
+        Alert.alert(
+          '등록 실패',
+          result.message || '할 일 등록에 실패했습니다.',
+          [{ text: '확인' }]
+        );
+      }
+    } catch (error) {
+      console.error('할일 등록 오류:', error);
+      Alert.alert(
+        '오류 발생',
+        '할 일 등록 중 오류가 발생했습니다.',
+        [{ text: '확인' }]
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // 📅 date-fns를 사용한 날짜 포맷팅
@@ -392,7 +426,7 @@ export function TodoAddScreen({ navigation }: any) {
               placeholderTextColor="#B0B0B0"
               value={title}
               onChangeText={setTitle}
-              maxLength={50}
+              maxLength={200} // ✅ DDL varchar(200)에 맞게 수정
             />
           </View>
 
@@ -407,7 +441,7 @@ export function TodoAddScreen({ navigation }: any) {
               onChangeText={setDescription}
               multiline
               textAlignVertical="top"
-              maxLength={200}
+              maxLength={1000} // ✅ DDL text 타입 - 충분한 길이
             />
           </View>
 
@@ -487,9 +521,15 @@ export function TodoAddScreen({ navigation }: any) {
           </View>
 
           {/* 저장 버튼 */}
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Icon name="check" size={24} color="#fff" />
-            <Text style={styles.saveButtonText}>할 일 등록하기</Text>
+          <TouchableOpacity
+            style={[styles.saveButton, { opacity: isLoading ? 0.7 : 1 }]}
+            onPress={handleSave}
+            disabled={isLoading}
+          >
+            <Icon name={isLoading ? "hourglass-empty" : "check"} size={24} color="#fff" />
+            <Text style={styles.saveButtonText}>
+              {isLoading ? '등록 중...' : '할 일 등록하기'}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

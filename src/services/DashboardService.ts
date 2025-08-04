@@ -39,24 +39,19 @@ export interface Anniversary {
 }
 
 export interface Schedule {
-  id: string;
-  title: string;
-  description?: string;
-  date: string;
-  time?: string;
-  location?: string;
-  priority: 'low' | 'medium' | 'high';
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
-  assignedTo?: string;
-  category?: string;
-  estimatedDuration?: number;
-  tags?: string[];
-  completedAt?: string;
-  completedBy?: string;
-  createdBy: string;
-  createdAt: string;
-  updatedAt: string;
+  id?: string;                    // bigint(10) auto_increment
+  couple_id?: string;             // varchar(36) not null - 서버에서 자동 설정
+  title: string;                  // varchar(200) not null
+  description?: string;           // text null
+  priority: 'low' | 'medium' | 'high';  // enum ('low', 'medium', 'high')
+  completed?: boolean;            // tinyint(1) default 0
+  created_by?: string;            // varchar(36) not null - 서버에서 자동 설정
+  created_at?: string;            // timestamp default current_timestamp()
+  updated_at?: string;            // timestamp default current_timestamp() on update
+  due_date?: string;              // date null (yyyy-MM-dd 형식)
+  due_time?: string;              // time null (HH:mm:ss 형식)
 }
+
 
 export interface DashboardStats {
   totalAnniversaries: number;
@@ -129,13 +124,12 @@ class DashboardService {
     const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
     const weekEnd = format(addDays(new Date(), 7), 'yyyy-MM-dd');
     const todayDate = new Date();
-    const threeMonthsLater = addDays(todayDate, 90);
 
-    // 기념일 필터링: 다가오는 기념일만 (90일 내)
+    // 기념일 필터링: 오늘 이후의 기념일만 날짜순으로 최근 5개
     const upcomingAnniversaries = rawData.anniversaries
       .filter((ann: Anniversary) => {
         const annDate = new Date(ann.date);
-        return isAfter(annDate, todayDate) && isBefore(annDate, threeMonthsLater);
+        return isAfter(annDate, todayDate) || annDate.toDateString() === todayDate.toDateString(); // 오늘 포함
       })
       .sort((a: Anniversary, b: Anniversary) =>
         new Date(a.date).getTime() - new Date(b.date).getTime()
@@ -144,17 +138,18 @@ class DashboardService {
 
     // 일정 날짜별 필터링
     const todaySchedules = rawData.schedules.filter(
-      schedule => schedule.date === today
+      schedule => schedule.dueDate === today
     );
 
     const tomorrowSchedules = rawData.schedules.filter(
-      schedule => schedule.date === tomorrow
+      schedule => schedule.dueDate === tomorrow
     );
 
     const thisWeekSchedules = rawData.schedules.filter(
-      schedule => schedule.date >= today && schedule.date <= weekEnd
+      schedule => schedule.dueDate >= today && schedule.dueDate <= weekEnd
     );
 
+    console.log('tkwjtikwet today ' ,todaySchedules)
     return {
       anniversaries: rawData.anniversaries,           // 전체 기념일
       upcomingAnniversaries,                          // 다가오는 기념일 (필터링됨)

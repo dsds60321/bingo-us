@@ -62,4 +62,16 @@ export const API_ENDPOINTS = {
     update: '/budget',
     delete: '/budget',
   },
+
+  // 반성문 관련
+  reflection: {
+    list: '/reflections',
+    create: '/reflections',
+    approve: '/reflections/approve',
+    stats: '/reflections/stats',
+    update: '/reflections',
+    delete: '/reflections',
+    byUser: '/reflections/user',
+  },
+
 };
