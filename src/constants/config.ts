@@ -24,6 +24,8 @@ export const API_ENDPOINTS = {
   auth: {
     signIn: '/sign-in',
     signup: '/signup',
+    verifyEmail: '/sign-up/email/verify',
+    confirmEmail : '/sign-up/email/confirm',
   },
 
   // 기념일 관련

@@ -311,7 +311,7 @@ export function SignupScreen({ navigation }: any) {
       const response = await authService.verifyEmail(formData.username, formData.email);
       console.log('Verification response:', response); // 디버깅용
 
-      if (response.data.success) {
+      if (response.success) {
         // 인증 코드 입력 화면을 표시하기 위해 상태 업데이트
         setEmailVerification(prev => ({
           ...prev,
@@ -360,6 +360,7 @@ export function SignupScreen({ navigation }: any) {
         emailVerification.verificationCode
       );
 
+      console.log('verify ' , response)
       if (response.data.verified) {
         setEmailVerification(prev => ({
           ...prev,
@@ -368,7 +369,7 @@ export function SignupScreen({ navigation }: any) {
         }));
         Alert.alert('인증 완료', '이메일 인증이 완료되었습니다! ✅');
       } else {
-        Alert.alert('인증 실패', response.message || '인증 코드가 올바르지 않습니다.');
+        Alert.alert('인증 실패', response.data.message || '인증 코드가 올바르지 않습니다.');
       }
     } catch (error) {
       Alert.alert('오류', '인증 확인 중 문제가 발생했습니다.');
