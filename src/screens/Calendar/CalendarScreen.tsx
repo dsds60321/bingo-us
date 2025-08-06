@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,35 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Alert,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAppStore } from '../../store/appStore';
 import { useTheme } from '../../store/themeStore';
+import { format } from 'date-fns';
+
+// 데이터 타입별 색상 정의
+const eventColors = {
+  anniversary: '#FF6B6B',    // 빨간색 - 기념일
+  schedule: '#4ECDC4',       // 청록색 - 일정
+  budget: '#45B7D1',         // 파란색 - 예산
+  reflection: '#96CEB4',     // 연두색 - 반성문
+};
+
+// 캘린더 이벤트 타입 정의
+interface CalendarEvent {
+  id: string;
+  type: 'anniversary' | 'schedule' | 'budget' | 'reflection';
+  title: string;
+  date: string;
+  description?: string;
+  amount?: number;
+  location?: string;
+  status?: string;
+  category?: string;
+  author?: string;
+}
 
 // 🎨 테마 시스템과 연동된 스타일 생성 함수
 const createStyles = (colors: any) => StyleSheet.create({
@@ -66,31 +91,29 @@ const createStyles = (colors: any) => StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 24,
     paddingVertical: 20,
-    gap: 16,
+    gap: 12,
   },
   actionButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderRadius: 16,
-    gap: 8,
+    gap: 6,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  todoButton: {
-    backgroundColor: colors.accent1,
-  },
-  anniversaryButton: {
-    backgroundColor: colors.accent2,
-  },
+  todoButton: { backgroundColor: eventColors.schedule },
+  anniversaryButton: { backgroundColor: eventColors.anniversary },
+  budgetButton: { backgroundColor: eventColors.budget },
+  reflectionButton: { backgroundColor: eventColors.reflection },
   actionButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
   },
   calendar: {
@@ -185,53 +208,216 @@ const createStyles = (colors: any) => StyleSheet.create({
     height: 4,
     borderRadius: 2,
   },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  scheduleIndicator: {
-    backgroundColor: colors.accent1,
-  },
-  anniversaryIndicator: {
-    backgroundColor: colors.accent2,
-  },
   legend: {
     flexDirection: 'row',
     justifyContent: 'center',
     paddingHorizontal: 20,
     paddingBottom: 24,
-    gap: 32,
+    gap: 20,
+    flexWrap: 'wrap',
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     backgroundColor: colors.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
   legendText: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666',
     fontWeight: '600',
+  },
+  // 모달 스타일
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 24,
+    margin: 20,
+    maxHeight: '70%',
+    minWidth: '85%',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceVariant,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  closeButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceVariant,
+  },
+  modalContent: {
+    maxHeight: 400,
+  },
+  eventSection: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionIcon: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  eventItem: {
+    backgroundColor: colors.surfaceVariant,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+  },
+  eventTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  eventDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  eventMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  eventMetaText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  eventAmount: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: eventColors.budget,
   },
 });
 
 export function CalendarScreen({ navigation }: any) {
   const colors = useTheme();
-  const { schedules, anniversaries } = useAppStore();
+  const {
+    schedules,
+    anniversaries,
+    budgetItems,
+    reflections
+  } = useAppStore();
+
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [selectedDateEvents, setSelectedDateEvents] = useState<CalendarEvent[]>([]);
+
+  const styles = createStyles(colors);
 
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
+
+  // 모든 데이터를 캘린더 이벤트로 변환하는 함수
+  const convertToCalendarEvents = (): CalendarEvent[] => {
+    const events: CalendarEvent[] = [];
+
+    // 기념일 변환
+    if (anniversaries && anniversaries.length > 0) {
+      anniversaries.forEach(anniversary => {
+        events.push({
+          id: `anniversary-${anniversary.id}`,
+          type: 'anniversary',
+          title: anniversary.title,
+          date: anniversary.date,
+          description: anniversary.description,
+        });
+      });
+    }
+
+    // 일정 변환
+    if (schedules && schedules.length > 0) {
+      schedules.forEach(schedule => {
+        events.push({
+          id: `schedule-${schedule.id}`,
+          type: 'schedule',
+          title: schedule.title,
+          date: schedule.dueDate || schedule.createdAt?.split('T')[0] || format(new Date(), 'yyyy-MM-dd'),
+          description: schedule.description,
+          status: schedule.completed ? '완료' : '진행중',
+        });
+      });
+    }
+
+    // 예산 변환
+    if (budgetItems && budgetItems.length > 0) {
+      budgetItems.forEach(budget => {
+        console.log('--- budget date', budget.expenseDate)
+        events.push({
+          id: `budget-${budget.id}`,
+          type: 'budget',
+          title: budget.title,
+          date: budget.expenseDate,
+          description: budget.description,
+          amount: budget.amount,
+          location: budget.location,
+          category: budget.category,
+          author: budget.paidBy,
+        });
+      });
+    }
+
+    // 반성문 변환
+    if (reflections && reflections.length > 0) {
+      reflections.forEach((reflection, index) => {
+        events.push({
+          id: `reflection-${reflection.id || index}`,
+          type: 'reflection',
+          title: reflection.incident,
+          date: reflection.created_at?.split('T')[0] || format(new Date(), 'yyyy-MM-dd'),
+          description: reflection.reason,
+          status: reflection.status,
+          author: reflection.authorUserId,
+        });
+      });
+    }
+
+    return events;
+  };
+
+  const allEvents = convertToCalendarEvents();
 
   // 한국어 요일 이름을 동적으로 생성
   const getDayNames = () => {
@@ -278,16 +464,17 @@ export function CalendarScreen({ navigation }: any) {
     return days;
   };
 
-  // 해당 날짜에 일정이 있는지 확인
-  const hasSchedule = (date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
-    return schedules.some(schedule => schedule.date === dateString);
+  // 해당 날짜의 이벤트들을 가져오는 함수
+  const getEventsForDate = (date: Date): CalendarEvent[] => {
+    const dateString = format(date, 'yyyy-MM-dd');
+    return allEvents.filter(event => event.date === dateString);
   };
 
-  // 해당 날짜에 기념일이 있는지 확인
-  const hasAnniversary = (date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
-    return anniversaries.some(anniversary => anniversary.date === dateString);
+  // 해당 날짜의 이벤트 타입별로 표시할 인디케이터 가져오기
+  const getEventIndicators = (date: Date) => {
+    const events = getEventsForDate(date);
+    const eventTypes = [...new Set(events.map(event => event.type))];
+    return eventTypes;
   };
 
   // 이전 달로 이동
@@ -308,60 +495,130 @@ export function CalendarScreen({ navigation }: any) {
   // 날짜 클릭 처리
   const handleDatePress = (date: Date) => {
     setSelectedDate(date);
+    const events = getEventsForDate(date);
 
-    const dateString = date.toISOString().split('T')[0];
-    const daySchedules = schedules.filter(schedule => schedule.date === dateString);
-    const dayAnniversaries = anniversaries.filter(anniversary => anniversary.date === dateString);
-
-    if (daySchedules.length > 0 || dayAnniversaries.length > 0) {
-      // 날짜 포맷팅을 한국어로
-      const formattedDate = date.toLocaleDateString('ko-KR', {
-        month: 'long',
-        day: 'numeric',
-        weekday: 'long'
-      });
-
-      let message = `📅 ${formattedDate}\n\n`;
-
-      if (dayAnniversaries.length > 0) {
-        message += '🎉 기념일:\n';
-        dayAnniversaries.forEach(ann => {
-          message += `• ${ann.title}\n`;
-        });
-        message += '\n';
-      }
-
-      if (daySchedules.length > 0) {
-        message += '📝 일정:\n';
-        daySchedules.forEach(schedule => {
-          message += `• ${schedule.time || '종일'} ${schedule.title}\n`;
-          if (schedule.location) {
-            message += `  📍 ${schedule.location}\n`;
-          }
-        });
-      }
-
-      Alert.alert('일정 정보', message);
+    if (events.length > 0) {
+      setSelectedDateEvents(events);
+      setShowEventModal(true);
     }
   };
 
-  // TODO 버튼 클릭
-  const handleTodoPress = () => {
-    navigation.navigate('TodoAdd');
-  };
+  // 이벤트 모달을 렌더링하는 함수
+  const renderEventModal = () => {
+    if (!selectedDate || selectedDateEvents.length === 0) return null;
 
-  // 기념일 등록 버튼 클릭
-  const handleAnniversaryPress = () => {
-    navigation.navigate('AnniversaryAdd');
+    const groupedEvents = {
+      anniversary: selectedDateEvents.filter(e => e.type === 'anniversary'),
+      schedule: selectedDateEvents.filter(e => e.type === 'schedule'),
+      budget: selectedDateEvents.filter(e => e.type === 'budget'),
+      reflection: selectedDateEvents.filter(e => e.type === 'reflection'),
+    };
+
+    const formatCurrency = (amount: number) => {
+      return new Intl.NumberFormat('ko-KR', {
+        style: 'currency',
+        currency: 'KRW'
+      }).format(amount);
+    };
+
+    const sectionTitles = {
+      anniversary: '🎉 기념일',
+      schedule: '📝 일정',
+      budget: '💰 예산',
+      reflection: '📄 반성문',
+    };
+
+    return (
+      <Modal
+        visible={showEventModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEventModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {selectedDate.toLocaleDateString('ko-KR', {
+                  month: 'long',
+                  day: 'numeric',
+                  weekday: 'long'
+                })}
+              </Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowEventModal(false)}
+              >
+                <Icon name="close" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+              {Object.entries(groupedEvents).map(([type, events]) => {
+                if (events.length === 0) return null;
+
+                return (
+                  <View key={type} style={styles.eventSection}>
+                    <View style={styles.sectionTitle}>
+                      <View
+                        style={[
+                          styles.sectionIcon,
+                          { backgroundColor: eventColors[type as keyof typeof eventColors] }
+                        ]}
+                      />
+                      <Text style={styles.sectionTitle}>
+                        {sectionTitles[type as keyof typeof sectionTitles]}
+                      </Text>
+                    </View>
+
+                    {events.map((event) => (
+                      <View key={event.id} style={styles.eventItem}>
+                        <Text style={styles.eventTitle}>{event.title}</Text>
+
+                        {event.description && (
+                          <Text style={styles.eventDescription}>
+                            {event.description}
+                          </Text>
+                        )}
+
+                        <View style={styles.eventMeta}>
+                          <View>
+                            {event.location && (
+                              <Text style={styles.eventMetaText}>📍 {event.location}</Text>
+                            )}
+                            {event.author && (
+                              <Text style={styles.eventMetaText}>👤 {event.author}</Text>
+                            )}
+                            {event.status && (
+                              <Text style={styles.eventMetaText}>📊 {event.status}</Text>
+                            )}
+                            {event.category && (
+                              <Text style={styles.eventMetaText}>🏷️ {event.category}</Text>
+                            )}
+                          </View>
+
+                          {event.amount && (
+                            <Text style={styles.eventAmount}>
+                              {formatCurrency(event.amount)}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
   };
 
   const calendarDays = generateCalendarDays();
   const dayNames = getDayNames();
   const monthYearText = getMonthName(currentYear, currentMonth);
   const today = new Date();
-
-  // 테마 기반 스타일 적용
-  const styles = createStyles(colors);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -395,18 +652,34 @@ export function CalendarScreen({ navigation }: any) {
       <View style={styles.actionButtons}>
         <TouchableOpacity
           style={[styles.actionButton, styles.todoButton]}
-          onPress={handleTodoPress}
+          onPress={() => navigation.navigate('TodoAdd')}
         >
-          <Icon name="checklist" size={22} color="#fff" />
-          <Text style={styles.actionButtonText}>TODO</Text>
+          <Icon name="checklist" size={18} color="#fff" />
+          <Text style={styles.actionButtonText}>일정</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.actionButton, styles.anniversaryButton]}
-          onPress={handleAnniversaryPress}
+          onPress={() => navigation.navigate('AnniversaryAdd')}
         >
-          <Icon name="celebration" size={22} color="#fff" />
-          <Text style={styles.actionButtonText}>기념일 등록</Text>
+          <Icon name="celebration" size={18} color="#fff" />
+          <Text style={styles.actionButtonText}>기념일</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionButton, styles.budgetButton]}
+          onPress={() => navigation.navigate('BudgetAdd')}
+        >
+          <Icon name="account-balance-wallet" size={18} color="#fff" />
+          <Text style={styles.actionButtonText}>예산</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionButton, styles.reflectionButton]}
+          onPress={() => navigation.navigate('ReflectionAdd')}
+        >
+          <Icon name="assignment" size={18} color="#fff" />
+          <Text style={styles.actionButtonText}>반성문</Text>
         </TouchableOpacity>
       </View>
 
@@ -443,8 +716,7 @@ export function CalendarScreen({ navigation }: any) {
             const dayOfWeek = index % 7;
             const isSunday = dayOfWeek === 0;
             const isSaturday = dayOfWeek === 6;
-            const hasEvent = hasSchedule(date);
-            const hasSpecialDay = hasAnniversary(date);
+            const eventTypes = getEventIndicators(date);
 
             return (
               <View key={`${date.toISOString()}-${index}`} style={styles.dateWrapper}>
@@ -470,12 +742,15 @@ export function CalendarScreen({ navigation }: any) {
 
                   {/* 이벤트 인디케이터 */}
                   <View style={styles.indicators}>
-                    {hasEvent && (
-                      <View style={[styles.indicator, styles.scheduleIndicator]} />
-                    )}
-                    {hasSpecialDay && (
-                      <View style={[styles.indicator, styles.anniversaryIndicator]} />
-                    )}
+                    {eventTypes.map((eventType) => (
+                      <View
+                        key={eventType}
+                        style={[
+                          styles.indicator,
+                          { backgroundColor: eventColors[eventType] }
+                        ]}
+                      />
+                    ))}
                   </View>
                 </TouchableOpacity>
               </View>
@@ -487,14 +762,25 @@ export function CalendarScreen({ navigation }: any) {
       {/* 하단 범례 */}
       <View style={styles.legend}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, styles.scheduleIndicator]} />
+          <View style={[styles.legendDot, { backgroundColor: eventColors.schedule }]} />
           <Text style={styles.legendText}>일정</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, styles.anniversaryIndicator]} />
+          <View style={[styles.legendDot, { backgroundColor: eventColors.anniversary }]} />
           <Text style={styles.legendText}>기념일</Text>
         </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: eventColors.budget }]} />
+          <Text style={styles.legendText}>예산</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: eventColors.reflection }]} />
+          <Text style={styles.legendText}>반성문</Text>
+        </View>
       </View>
+
+      {/* 이벤트 모달 */}
+      {renderEventModal()}
     </SafeAreaView>
   );
 }

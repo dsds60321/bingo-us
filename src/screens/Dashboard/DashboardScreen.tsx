@@ -260,7 +260,6 @@ export function DashboardScreen({ navigation }: any) {
     loadDashboardData,       // ✅ 데이터 로드 함수
     getTotalBudget,
     getPendingReflections,   // 반성문 헬퍼 함수
-    getRecentReflections,    // 반성문 헬퍼 함수
   } = useAppStore();
 
   const styles = createStyles(colors);
@@ -297,7 +296,8 @@ export function DashboardScreen({ navigation }: any) {
 
   // 반성문 데이터
   const pendingReflections = getPendingReflections();
-  const recentReflections = getRecentReflections();
+
+  console.log('pendingReflections', pendingReflections)
 
   console.log('🔍 Dashboard Data Status:', {
     hasDashboardData: !!dashboardData,
@@ -307,7 +307,6 @@ export function DashboardScreen({ navigation }: any) {
     tomorrowSchedulesCount: tomorrowSchedules.length,
     daysFromStart,
     pendingReflectionsCount: pendingReflections.length,
-    recentReflectionsCount: recentReflections.length,
   });
 
   const budgetSummary = getTotalBudget();
@@ -389,9 +388,9 @@ export function DashboardScreen({ navigation }: any) {
                 <Text style={styles.addButtonText}>반성문 확인하기</Text>
               </TouchableOpacity>
             </View>
-          ) : recentReflections.length > 0 ? (
+          ) : pendingReflections.length > 0 ? (
             <View>
-              {recentReflections.map((reflection) => (
+              {pendingReflections.map((reflection) => (
                 <View key={reflection.id} style={styles.reflectionCard}>
                   <View style={styles.reflectionHeader}>
                     <Text style={styles.reflectionTitle} numberOfLines={1}>

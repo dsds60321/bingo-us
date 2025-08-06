@@ -3,11 +3,13 @@ import { API_ENDPOINTS } from '../constants/config';
 import { apiClient } from './ApiClient';
 import { format, addDays, startOfMonth, endOfMonth, isAfter, isBefore } from 'date-fns';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {Reflection} from "./ReflectionService.ts";
 
 // 타입 정의 - 백엔드 응답 구조에 맞게 수정
 export interface DashboardData {
   anniversaries: Anniversary[];          // ✅ upcomingAnniversaries → anniversaries
   schedules: Schedule[];                 // ✅ todaySchedules, tomorrowSchedules → schedules
+  reflections : Reflection[];
   completedTasksThisWeek: number;
   pendingTasksCount: number;
   stats: DashboardStats;
@@ -17,6 +19,7 @@ export interface DashboardData {
 export interface ProcessedDashboardData {
   anniversaries: Anniversary[];
   upcomingAnniversaries: Anniversary[];  // 다가오는 기념일만 필터링
+  reflections : Reflection[];
   allSchedules: Schedule[];              // 전체 일정
   todaySchedules: Schedule[];            // 오늘 일정
   tomorrowSchedules: Schedule[];         // 내일 일정
@@ -149,11 +152,12 @@ class DashboardService {
       schedule => schedule.dueDate >= today && schedule.dueDate <= weekEnd
     );
 
-    console.log('tkwjtikwet today ' ,todaySchedules)
+
     return {
       anniversaries: rawData.anniversaries,           // 전체 기념일
       upcomingAnniversaries,                          // 다가오는 기념일 (필터링됨)
       allSchedules: rawData.schedules,                // 전체 일정
+      reflections : rawData.reflections,                // 반성문
       todaySchedules,                                 // 오늘 일정
       tomorrowSchedules,                              // 내일 일정
       thisWeekSchedules,                              // 이번 주 일정
