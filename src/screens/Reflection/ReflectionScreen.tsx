@@ -54,11 +54,10 @@ export function ReflectionScreen() {
       setIsLoading(true);
       const response = await reflectionService.getReflections();
 
-      if (response.success && response.data) {
+      if (response.success && response.data?.length > 0) {
         setReflections(response.data);
-      } else {
-        console.error('Failed to load reflections:', response.message);
       }
+
     } catch (error) {
       console.error('Error loading reflections:', error);
     } finally {

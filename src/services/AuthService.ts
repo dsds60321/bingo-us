@@ -10,7 +10,7 @@ export interface LoginRequest {
 }
 
 export interface SignUpRequest {
-  username: string;
+  id: string;
   password: string;
   nickname: string;
   email: string;
@@ -231,7 +231,7 @@ class AuthService {
   // 로그아웃
   async logout(): Promise<void> {
     try {
-      await apiClient.post(API_ENDPOINTS.auth.logout);
+      await apiClient.get(API_ENDPOINTS.auth.logout);
     } catch (error) {
       console.error('Logout error:', error);
     } finally {

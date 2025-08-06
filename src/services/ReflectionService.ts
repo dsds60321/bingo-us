@@ -106,7 +106,10 @@ class ReflectionService {
       );
 
       if (response.data.success && response.data.code === '200') {
-        const mappedData: Reflection[] = response.data.data.map((item: any) => ({
+        // ✅ 데이터가 없거나 null인 경우 빈 배열 반환
+        const data = response.data.data || [];
+
+        const mappedData: Reflection[] = data.map((item: any) => ({
           id: item.id,
           couple_id: item.coupleId,
           author_user_id: item.authorUserId,
@@ -123,25 +126,27 @@ class ReflectionService {
 
         return {
           success: true,
-          data: mappedData,
+          data: mappedData, // 빈 배열이어도 안전하게 반환
         };
-
       }
 
+      // ✅ API 호출은 성공했지만 데이터가 없는 경우에도 빈 배열 반환
       return {
-        success: false,
-        message: response.data.message || '반성문 목록을 불러오는데 실패했습니다.',
-        data: [],
+        success: true,
+        data: [], // 성공이지만 데이터 없음
+        message: response.data.message || '반성문이 없습니다.',
       };
     } catch (error: any) {
       console.error('Get reflections error:', error);
       return {
         success: false,
         message: error.response?.data?.message || '반성문 목록 조회 중 오류가 발생했습니다.',
-        data: [],
+        data: [], // 에러 시에도 빈 배열 반환
       };
     }
   }
+
+
 
   /**
    * 반성문 승인/거부

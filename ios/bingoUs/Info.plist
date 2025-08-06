@@ -68,5 +68,23 @@
         <string>SimpleLineIcons.ttf</string>
         <string>Zocial.ttf</string>
     </array>
+     <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.bingous.deeplink</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>bingous</string>
+            </array>
+        </dict>
+    </array>
+
+  <key>LSApplicationQueriesSchemes</key>
+    <array>
+        <string>sms</string>
+        <string>tel</string>
+    </array>
+
 </dict>
 </plist>

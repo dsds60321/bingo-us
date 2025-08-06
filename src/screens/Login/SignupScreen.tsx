@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -79,6 +79,29 @@ const createStyles = (colors: any) => StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     marginBottom: 24,
+  },
+  // ✅ 초대 토큰 표시 스타일 추가
+  inviteTokenContainer: {
+    backgroundColor: colors.primary + '20',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.primary + '40',
+  },
+  inviteTokenTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  inviteTokenText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   inputContainer: {
     marginBottom: 16,
@@ -177,6 +200,40 @@ const createStyles = (colors: any) => StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
   },
+  verificationTimerExpired: {
+    fontSize: 12,
+    color: colors.error || '#FF6B6B',
+    textAlign: 'center',
+    marginTop: 8,
+    fontWeight: '600',
+  },
+  expiredMessage: {
+    backgroundColor: '#FFE6E6',
+    borderColor: colors.error || '#FF6B6B',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+  },
+  expiredMessageText: {
+    fontSize: 12,
+    color: colors.error || '#FF6B6B',
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  resendButton: {
+    backgroundColor: colors.secondary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 8,
+    alignSelf: 'center',
+  },
+  resendButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   verificationSuccess: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -235,17 +292,20 @@ const createStyles = (colors: any) => StyleSheet.create({
 });
 
 interface FormErrors {
-  username?: string;
+  id?: string;
   password?: string;
   nickname?: string;
   email?: string;
 }
 
-export function SignupScreen({ navigation }: any) {
+export function SignupScreen({ navigation, route }: any) {
   const colors = useTheme();
 
+  // ✅ route에서 token 파라미터 받기
+  const inviteToken = route?.params?.token || null;
+
   const [formData, setFormData] = useState({
-    username: '',
+    id: '',
     password: '',
     confirmPassword: '',
     nickname: '',
@@ -255,20 +315,46 @@ export function SignupScreen({ navigation }: any) {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
 
-  // 이메일 인증 관련 상태
+  // 이메일 인증 관련 상태 - 수정된 부분
   const [emailVerification, setEmailVerification] = useState({
     isVerifying: false,
     isVerified: false,
     verificationCode: '',
     timer: 0,
     canResend: true,
+    isExpired: false, // ✅ 만료 상태 추가
   });
 
+  // 타이머 참조 - ✅ useRef로 타이머 관리
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ✅ 컴포넌트 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
+
+  // ✅ 초대 토큰이 있을 때 UI 변경
+  useEffect(() => {
+    if (inviteToken) {
+      console.log('초대 토큰 감지:', inviteToken);
+      // 초대받은 사용자임을 알리는 메시지 표시
+      Alert.alert(
+        '커플 초대 🎉',
+        '파트너가 당신을 커플 다이어리에 초대했습니다!\n회원가입을 완료하면 자동으로 커플이 연결됩니다.',
+        [{ text: '확인' }]
+      );
+    }
+  }, [inviteToken]);
+
   // 유효성 검사 함수들
-  const validateUsername = (username: string) => {
-    if (!username.trim()) return '아이디를 입력해주세요.';
-    if (username.length < 4) return '아이디는 4글자 이상이어야 합니다.';
-    if (!/^[a-zA-Z0-9_]+$/.test(username)) return '영문, 숫자, 언더스코어만 사용 가능합니다.';
+  const validateUsername = (id: string) => {
+    if (!id.trim()) return '아이디를 입력해주세요.';
+    if (id.length < 4) return '아이디는 4글자 이상이어야 합니다.';
+    if (!/^[a-zA-Z0-9_]+$/.test(id)) return '영문, 숫자, 언더스코어만 사용 가능합니다.';
     return '';
   };
 
@@ -291,7 +377,33 @@ export function SignupScreen({ navigation }: any) {
     return '';
   };
 
-  // 이메일 인증 코드 발송
+  // ✅ 타이머 시작 함수
+  const startTimer = () => {
+    // 기존 타이머가 있다면 정리
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+
+    timerRef.current = setInterval(() => {
+      setEmailVerification(prev => {
+        if (prev.timer <= 1) {
+          clearInterval(timerRef.current!);
+          // ✅ 타이머 만료 시 처리
+          return {
+            ...prev,
+            timer: 0,
+            canResend: true,
+            isExpired: true, // 만료 상태로 변경
+            isVerifying: false, // 인증 상태 해제
+            verificationCode: '' // 입력된 코드 초기화
+          };
+        }
+        return { ...prev, timer: prev.timer - 1 };
+      });
+    }, 1000);
+  };
+
+  // ✅ 이메일 인증 코드 발송 - 수정된 부분
   const sendVerificationCode = async () => {
     const emailError = validateEmail(formData.email);
     if (emailError) {
@@ -300,56 +412,54 @@ export function SignupScreen({ navigation }: any) {
     }
 
     // 아이디가 입력되지 않은 경우 체크
-    if (!formData.username.trim()) {
-      setErrors(prev => ({ ...prev, username: '아이디를 먼저 입력해주세요.' }));
+    if (!formData.id.trim()) {
+      setErrors(prev => ({ ...prev, id: '아이디를 먼저 입력해주세요.' }));
       return;
     }
 
     setIsLoading(true);
     try {
-      console.log('Sending verification code...'); // 디버깅용
-      const response = await authService.verifyEmail(formData.username, formData.email);
-      console.log('Verification response:', response); // 디버깅용
+      console.log('Sending verification code...');
+      const response = await authService.verifyEmail(formData.id, formData.email);
+      console.log('Verification response:', response);
 
       if (response.success) {
-        // 인증 코드 입력 화면을 표시하기 위해 상태 업데이트
+        // ✅ 인증 상태 초기화 및 타이머 시작
         setEmailVerification(prev => ({
           ...prev,
           isVerifying: true,
           isVerified: false,
-          verificationCode: '', // 코드 초기화
-          timer: 300, // 5분
+          isExpired: false, // 만료 상태 초기화
+          verificationCode: '',
+          timer: 300, // 5분 (300초)
           canResend: false,
         }));
 
-        Alert.alert('인증 코드 발송', `인증 코드를 ${formData.email}로 발송했습니다.`);
+        Alert.alert('인증 코드 발송', `인증 코드를 ${formData.email}로 발송했습니다.\n5분 내에 인증을 완료해주세요.`);
 
-        // 타이머 시작
-        const timer = setInterval(() => {
-          setEmailVerification(prev => {
-            if (prev.timer <= 1) {
-              clearInterval(timer);
-              return { ...prev, timer: 0, canResend: true };
-            }
-            return { ...prev, timer: prev.timer - 1 };
-          });
-        }, 1000);
+        // ✅ 타이머 시작
+        startTimer();
       } else {
         Alert.alert('발송 실패', response.message || '인증 코드 발송에 실패했습니다.');
       }
     } catch (error) {
-      console.error('Verification error:', error); // 디버깅용
+      console.error('Verification error:', error);
       Alert.alert('오류', '인증 코드 발송 중 문제가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }
   };
 
-
-  // 인증 코드 확인
+  // ✅ 인증 코드 확인 - 수정된 부분
   const verifyCode = async () => {
     if (!emailVerification.verificationCode.trim()) {
       Alert.alert('알림', '인증 코드를 입력해주세요.');
+      return;
+    }
+
+    // ✅ 만료된 경우 체크
+    if (emailVerification.isExpired || emailVerification.timer <= 0) {
+      Alert.alert('인증 만료', '인증 시간이 만료되었습니다. 인증 코드를 다시 발송해주세요.');
       return;
     }
 
@@ -360,12 +470,19 @@ export function SignupScreen({ navigation }: any) {
         emailVerification.verificationCode
       );
 
-      console.log('verify ' , response)
+      console.log('verify ', response);
       if (response.data.verified) {
+        // ✅ 인증 성공 시 타이머 정리
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+        }
+
         setEmailVerification(prev => ({
           ...prev,
           isVerified: true,
           isVerifying: false,
+          isExpired: false,
+          timer: 0,
         }));
         Alert.alert('인증 완료', '이메일 인증이 완료되었습니다! ✅');
       } else {
@@ -378,15 +495,34 @@ export function SignupScreen({ navigation }: any) {
     }
   };
 
+  // ✅ 재발송 함수 추가
+  const resendVerificationCode = async () => {
+    // 기존 상태 초기화
+    setEmailVerification(prev => ({
+      ...prev,
+      isExpired: false,
+      verificationCode: '',
+      timer: 0,
+      canResend: false,
+    }));
+
+    // 재발송
+    await sendVerificationCode();
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
 
-    // 이메일이 변경되면 인증 상태 초기화
+    // ✅ 이메일이 변경되면 인증 상태 초기화 및 타이머 정리
     if (field === 'email') {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
       setEmailVerification(prev => ({
         ...prev,
         isVerifying: false,
         isVerified: false,
+        isExpired: false,
         verificationCode: '',
         timer: 0,
         canResend: true,
@@ -396,7 +532,7 @@ export function SignupScreen({ navigation }: any) {
     // 실시간 유효성 검사
     let error = '';
     switch (field) {
-      case 'username':
+      case 'id':
         error = validateUsername(value);
         break;
       case 'password':
@@ -413,10 +549,11 @@ export function SignupScreen({ navigation }: any) {
     setErrors(prev => ({ ...prev, [field]: error }));
   };
 
+  // ✅ 회원가입 함수 수정 - token 포함
   const handleSignup = async () => {
     // 전체 유효성 검사
     const newErrors: FormErrors = {
-      username: validateUsername(formData.username),
+      id: validateUsername(formData.id),
       password: validatePassword(formData.password),
       nickname: validateNickname(formData.nickname),
       email: validateEmail(formData.email),
@@ -444,19 +581,32 @@ export function SignupScreen({ navigation }: any) {
 
     setIsLoading(true);
     try {
-      const response = await authService.signUp({
-        username: formData.username,
+      // ✅ 초대 토큰 포함한 회원가입 데이터
+      const signupData = {
+        id: formData.id,
         password: formData.password,
         nickname: formData.nickname,
         email: formData.email,
+        ...(inviteToken && { token: inviteToken }), // 토큰이 있으면 포함
+      };
+
+      console.log('회원가입 데이터:', {
+        ...signupData,
+        password: '[숨김]' // 로그에서 비밀번호 숨김
       });
 
+      const response = await authService.signUp(signupData);
+
       if (response.success) {
+        const successMessage = inviteToken
+          ? '회원가입 완료! 🎉\n커플이 자동으로 연결되었습니다!\n로그인하여 파트너와 함께 추억을 만들어보세요.'
+          : '회원가입 완료! 🎉\n환영합니다! 로그인 화면으로 이동합니다.';
+
         Alert.alert(
-          '회원가입 완료! 🎉',
-          '환영합니다! 로그인 화면으로 이동합니다.',
+          '가입 성공',
+          successMessage,
           [
-            { text: '확인', onPress: () => navigation.goBack() }
+            { text: '확인', onPress: () => navigation.navigate('Login')}
           ]
         );
       } else {
@@ -470,7 +620,7 @@ export function SignupScreen({ navigation }: any) {
   };
 
   const isFormValid = () => {
-    return formData.username &&
+    return formData.id &&
       formData.password &&
       formData.confirmPassword &&
       formData.nickname &&
@@ -494,11 +644,13 @@ export function SignupScreen({ navigation }: any) {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('Login')}
         >
           <Icon name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>회원가입</Text>
+        <Text style={styles.headerTitle}>
+          {inviteToken ? '커플 초대받기' : '회원가입'}
+        </Text>
       </View>
 
       <KeyboardAvoidingView
@@ -515,10 +667,28 @@ export function SignupScreen({ navigation }: any) {
           <View style={styles.content}>
             {/* 회원가입 폼 */}
             <View style={styles.formContainer}>
-              <Text style={styles.formTitle}>새 계정 만들기</Text>
-              <Text style={styles.formSubtitle}>
-                커플 다이어리와 함께 특별한 순간들을 기록해보세요 💕
+              <Text style={styles.formTitle}>
+                {inviteToken ? '파트너와 함께 시작하기' : '새 계정 만들기'}
               </Text>
+              <Text style={styles.formSubtitle}>
+                {inviteToken
+                  ? '회원가입을 완료하면 자동으로 커플이 연결됩니다 💕'
+                  : '커플 다이어리와 함께 특별한 순간들을 기록해보세요 💕'
+                }
+              </Text>
+
+              {/* ✅ 초대 토큰 표시 */}
+              {inviteToken && (
+                <View style={styles.inviteTokenContainer}>
+                  <Icon name="favorite" size={32} color={colors.primary} />
+                  <Text style={styles.inviteTokenTitle}>
+                    🎉 커플 초대 링크로 가입하기
+                  </Text>
+                  <Text style={styles.inviteTokenText}>
+                    초대 코드: {inviteToken.slice(0, 8)}...
+                  </Text>
+                </View>
+              )}
 
               {/* 아이디 입력 */}
               <View style={styles.inputContainer}>
@@ -527,22 +697,22 @@ export function SignupScreen({ navigation }: any) {
                 </Text>
                 <View style={[
                   styles.inputWrapper,
-                  focusedInput === 'username' && styles.inputFocused,
-                  errors.username && styles.inputError
+                  focusedInput === 'id' && styles.inputFocused,
+                  errors.id && styles.inputError
                 ]}>
                   <Icon
                     name="person"
                     size={20}
-                    color={focusedInput === 'username' ? colors.primary : '#666'}
+                    color={focusedInput === 'id' ? colors.primary : '#666'}
                     style={styles.inputIcon}
                   />
                   <TextInput
                     style={styles.input}
                     placeholder="4글자 이상의 아이디"
                     placeholderTextColor="#B0B0B0"
-                    value={formData.username}
-                    onChangeText={(text) => handleInputChange('username', text)}
-                    onFocus={() => setFocusedInput('username')}
+                    value={formData.id}
+                    onChangeText={(text) => handleInputChange('id', text)}
+                    onFocus={() => setFocusedInput('id')}
                     onBlur={() => setFocusedInput(null)}
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -551,7 +721,7 @@ export function SignupScreen({ navigation }: any) {
                     blurOnSubmit={false}
                   />
                 </View>
-                {errors.username ? <Text style={styles.errorText}>{errors.username}</Text> : null}
+                {errors.id ? <Text style={styles.errorText}>{errors.id}</Text> : null}
               </View>
 
               {/* 비밀번호 입력 */}
@@ -719,8 +889,8 @@ export function SignupScreen({ navigation }: any) {
                 </View>
                 {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
 
-                {/* 인증 코드 입력 */}
-                {emailVerification.isVerifying && !emailVerification.isVerified && (
+                {/* ✅ 인증 코드 입력 - 만료 처리 추가 */}
+                {emailVerification.isVerifying && !emailVerification.isVerified && !emailVerification.isExpired && (
                   <View style={styles.verificationContainer}>
                     <Text style={[styles.label, { marginBottom: 8 }]}>인증 코드</Text>
                     <View style={styles.verificationInputWrapper}>
@@ -732,7 +902,7 @@ export function SignupScreen({ navigation }: any) {
                         onChangeText={(text) => setEmailVerification(prev => ({ ...prev, verificationCode: text }))}
                         keyboardType="number-pad"
                         maxLength={6}
-                        editable={!isLoading}
+                        editable={!isLoading && !emailVerification.isExpired}
                         returnKeyType="done"
                         blurOnSubmit={false}
                       />
@@ -742,18 +912,43 @@ export function SignupScreen({ navigation }: any) {
                           isLoading && styles.loadingButton
                         ]}
                         onPress={verifyCode}
-                        disabled={isLoading}
+                        disabled={isLoading || emailVerification.isExpired}
                       >
                         <Text style={styles.verificationButtonText}>
                           {isLoading ? '확인중...' : '확인'}
                         </Text>
                       </TouchableOpacity>
                     </View>
-                    {emailVerification.timer > 0 && (
-                      <Text style={styles.verificationTimer}>
+                    {emailVerification.timer > 0 ? (
+                      <Text style={[
+                        styles.verificationTimer,
+                        emailVerification.timer <= 60 && { color: colors.error || '#FF6B6B' }
+                      ]}>
                         남은 시간: {formatTime(emailVerification.timer)}
+                        {emailVerification.timer <= 60 && ' ⏰'}
                       </Text>
-                    )}
+                    ) : null}
+                  </View>
+                )}
+
+                {/* ✅ 만료 메시지 및 재발송 버튼 */}
+                {emailVerification.isExpired && (
+                  <View style={styles.expiredMessage}>
+                    <Text style={styles.expiredMessageText}>
+                      ⚠️ 인증 시간이 만료되었습니다. (5분 초과)
+                    </Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.resendButton,
+                        isLoading && styles.loadingButton
+                      ]}
+                      onPress={resendVerificationCode}
+                      disabled={isLoading}
+                    >
+                      <Text style={styles.resendButtonText}>
+                        {isLoading ? '재발송중...' : '인증 코드 재발송'}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 )}
 
@@ -779,14 +974,19 @@ export function SignupScreen({ navigation }: any) {
               >
                 <Icon name="person-add" size={20} color="#fff" />
                 <Text style={styles.signupButtonText}>
-                  {isLoading ? '가입 중...' : '회원가입'}
+                  {isLoading
+                    ? '가입 중...'
+                    : inviteToken
+                      ? '커플 연결하며 가입하기'
+                      : '회원가입'
+                  }
                 </Text>
               </TouchableOpacity>
 
               {/* 로그인 링크 */}
               <TouchableOpacity
                 style={styles.loginLink}
-                onPress={() => navigation.goBack()}
+                onPress={() => navigation.navigate('Login')}
               >
                 <Text style={styles.loginLinkText}>
                   이미 계정이 있으신가요? 로그인하기

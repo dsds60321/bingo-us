@@ -23,7 +23,8 @@ export const API_ENDPOINTS = {
   // 인증 관련
   auth: {
     signIn: '/sign-in',
-    signup: '/signup',
+    signup: '/sign-up',
+    logout: '/sign-out',
     verifyEmail: '/sign-up/email/verify',
     confirmEmail : '/sign-up/email/confirm',
   },
@@ -55,6 +56,7 @@ export const API_ENDPOINTS = {
     info: '/couple',
     invite: '/couple/invite',
     accept: '/couple/accept',
+    link : '/couple/link'
   },
 
   // 가계부 관련

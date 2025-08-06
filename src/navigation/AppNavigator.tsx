@@ -19,7 +19,26 @@ import { TodoAddScreen } from '../screens/Todo/TodoAddScreen';
 import { BetDetailScreen } from '../screens/Bet/BetDetailScreen';
 import { BetResultScreen } from '../screens/Bet/BetResultScreen';
 
+// 💕 Couple 관련 화면들 추가!
+import { CoupleInviteScreen } from '../screens/Couple/CoupleInviteScreen';
+
 const Stack = createStackNavigator();
+
+// Deep Link 설정
+const linking = {
+  prefixes: ['bingous://'],
+  config: {
+    screens: {
+      Signup: {
+        path: '/signup',
+        parse: {
+          token: (token: string) => token,
+        },
+      },
+    },
+  },
+};
+
 
 export function AppNavigator() {
   const { isAuthenticated, isLoading } = useAppStore();
@@ -30,8 +49,8 @@ export function AppNavigator() {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator
+    <NavigationContainer linking={linking}>
+    <Stack.Navigator
         screenOptions={{
           headerShown: false,
           gestureEnabled: true,
@@ -90,6 +109,28 @@ export function AppNavigator() {
               component={BottomTabNavigator}
               options={{
                 animationTypeForReplace: 'push',
+              }}
+            />
+
+            {/* 💕 Couple 관련 화면들 */}
+            <Stack.Screen
+              name="CoupleInvite"
+              component={CoupleInviteScreen}
+              options={{
+                cardStyleInterpolator: ({ current, layouts }) => {
+                  return {
+                    cardStyle: {
+                      transform: [
+                        {
+                          translateX: current.progress.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [layouts.screen.width, 0],
+                          }),
+                        },
+                      ],
+                    },
+                  };
+                },
               }}
             />
 
