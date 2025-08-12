@@ -676,7 +676,7 @@ export function CalendarScreen({ navigation }: any) {
 
         <TouchableOpacity
           style={[styles.actionButton, styles.reflectionButton]}
-          onPress={() => navigation.navigate('ReflectionAdd')}
+          onPress={() => navigation.navigate('Reflection')}
         >
           <Icon name="assignment" size={18} color="#fff" />
           <Text style={styles.actionButtonText}>반성문</Text>
