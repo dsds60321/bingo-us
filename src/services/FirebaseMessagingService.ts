@@ -21,10 +21,11 @@ class FirebaseMessagingService {
    * 🔍 시뮬레이터 환경 감지
    */
   private isSimulator(): boolean {
+    return false;
     // iOS 시뮬레이터 감지
-    return Platform.OS === 'ios' &&
-      (Platform.isPad === undefined || !Platform.isPad) &&
-      __DEV__;
+    // return Platform.OS === 'ios' &&
+    //   (Platform.isPad === undefined || !Platform.isPad) &&
+    //   __DEV__;
   }
 
   /**
