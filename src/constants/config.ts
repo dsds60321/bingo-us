@@ -1,7 +1,7 @@
 // 환경별 설정 관리
 export const config = {
   development: {
-    API_BASE_URL: 'https://gunho.dev/bingo-us/v1',
+    API_BASE_URL: 'http://192.168.0.30:10001/bingo-us/v1',
     API_TIMEOUT: 10000,
   },
   production: {
@@ -74,7 +74,12 @@ export const API_ENDPOINTS = {
     stats: '/reflections/stats',
     update: '/reflections',
     delete: '/reflections',
+    detail: '/reflections/detail',
     byUser: '/reflections/user',
+  },
+  notification: {
+    send: '/notifications/send',
+    registerToken: '/notifications/fcm-token', // FCM 토큰 등록
   },
 
 };

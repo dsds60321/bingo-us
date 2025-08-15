@@ -1,11 +1,20 @@
-const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
+const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
 
-/**
- * Metro configuration
- * https://reactnative.dev/docs/metro
- *
- * @type {import('@react-native/metro-config').MetroConfig}
- */
-const config = {};
+const config = {
+  resolver: {
+    unstable_enablePackageExports: false,
+    platforms: ['ios', 'android', 'native', 'web'],
+  },
+  transformer: {
+    // Hermes 호환을 위한 설정
+    hermesParser: true,
+    getTransformOptions: async () => ({
+      transform: {
+        experimentalImportSupport: false,
+        inlineRequires: false,
+      },
+    }),
+  },
+};
 
 module.exports = mergeConfig(getDefaultConfig(__dirname), config);
