@@ -120,45 +120,45 @@ function App(): React.JSX.Element {
 /**
  * Firebase 기본 상태 확인 함수 - 수정됨
  */
-async function checkFirebaseStatus(): Promise<void> {
-  try {
-    console.log('checkFirebaseSStatus')
-    // Firebase App 초기화 상태 확인 (올바른 방식)
-    const defaultApp = app(); // app()을 직접 호출
-
-    console.log('------', defaultApp)
-    console.log('🔥 Firebase 앱 정보:');
-    console.log('📱 앱 이름:', defaultApp.name);
-    console.log('📂 프로젝트 ID:', defaultApp.options.projectId);
-    console.log('🆔 앱 ID:', defaultApp.options.appId?.substring(0, 20) + '...');
-    console.log('📨 메시징 센더 ID:', defaultApp.options.messagingSenderId);
-
-    // Platform 별 정보 출력
-    if (defaultApp.options.bundleId) {
-      console.log('📦 Bundle ID:', defaultApp.options.bundleId);
-    }
-
-    if (defaultApp.options.android?.packageName) {
-      console.log('📱 Package Name:', defaultApp.options.android.packageName);
-    }
-
-    // Firebase Messaging 서비스 사용 가능 여부 확인
-    const messagingAvailable = messaging.isSupported ? await messaging.isSupported() : true;
-    console.log('📱 Firebase Messaging 지원:', messagingAvailable ? '✅' : '❌');
-
-    if (!messagingAvailable) {
-      console.warn('⚠️ Firebase Messaging이 이 환경에서 지원되지 않습니다');
-    }
-
-    console.log('✅ Firebase 상태 확인 완료');
-  } catch (error) {
-    console.error('❌ Firebase 상태 확인 실패:', error);
-
-    // Firebase 설정 파일 확인 가이드
-    console.log('💡 Firebase 설정 파일 확인사항:');
-    console.log('   iOS: ios/bingoUs/GoogleService-Info.plist 파일이 있는지 확인');
-    console.log('   Android: android/app/google-services.json 파일이 있는지 확인');
-  }
-}
+// async function checkFirebaseStatus(): Promise<void> {
+//   try {
+//     console.log('checkFirebaseSStatus')
+//     // Firebase App 초기화 상태 확인 (올바른 방식)
+//     const defaultApp = app(); // app()을 직접 호출
+//
+//     console.log('------', defaultApp)
+//     console.log('🔥 Firebase 앱 정보:');
+//     console.log('📱 앱 이름:', defaultApp.name);
+//     console.log('📂 프로젝트 ID:', defaultApp.options.projectId);
+//     console.log('🆔 앱 ID:', defaultApp.options.appId?.substring(0, 20) + '...');
+//     console.log('📨 메시징 센더 ID:', defaultApp.options.messagingSenderId);
+//
+//     // Platform 별 정보 출력
+//     if (defaultApp.options.bundleId) {
+//       console.log('📦 Bundle ID:', defaultApp.options.bundleId);
+//     }
+//
+//     if (defaultApp.options.android?.packageName) {
+//       console.log('📱 Package Name:', defaultApp.options.android.packageName);
+//     }
+//
+//     // Firebase Messaging 서비스 사용 가능 여부 확인
+//     const messagingAvailable = messaging.isSupported ? await messaging.isSupported() : true;
+//     console.log('📱 Firebase Messaging 지원:', messagingAvailable ? '✅' : '❌');
+//
+//     if (!messagingAvailable) {
+//       console.warn('⚠️ Firebase Messaging이 이 환경에서 지원되지 않습니다');
+//     }
+//
+//     console.log('✅ Firebase 상태 확인 완료');
+//   } catch (error) {
+//     console.error('❌ Firebase 상태 확인 실패:', error);
+//
+//     // Firebase 설정 파일 확인 가이드
+//     console.log('💡 Firebase 설정 파일 확인사항:');
+//     console.log('   iOS: ios/bingoUs/GoogleService-Info.plist 파일이 있는지 확인');
+//     console.log('   Android: android/app/google-services.json 파일이 있는지 확인');
+//   }
+// }
 
 export default App;

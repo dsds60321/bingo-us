@@ -1,7 +1,7 @@
 // 환경별 설정 관리
 export const config = {
   development: {
-    API_BASE_URL: 'http://192.168.0.30:10001/bingo-us/v1',
+    API_BASE_URL: 'https://gunho.dev/bingo-us/v1',
     API_TIMEOUT: 10000,
   },
   production: {
