@@ -27,6 +27,7 @@ export const API_ENDPOINTS = {
     logout: '/sign-out',
     verifyEmail: '/sign-up/email/verify',
     confirmEmail : '/sign-up/email/confirm',
+    withdraw : '/withdraw',
   },
 
   // 기념일 관련

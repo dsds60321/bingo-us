@@ -5,13 +5,14 @@ import {
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
-  ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useThemeStore, useTheme } from '../../store/themeStore';
 import { useAppStore } from '../../store/appStore';
 import { CustomScrollView } from '../../components/CustomScrollView.tsx';
+import { authService } from '../../services/AuthService';
 
 const createStyles = (colors: any) => StyleSheet.create({
   container: {
@@ -51,13 +52,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.primary,
-    padding: 20,
-    paddingBottom: 0,
-  },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -93,6 +87,27 @@ const createStyles = (colors: any) => StyleSheet.create({
     elevation: 6,
   },
   logoutButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  // 🗑️ 탈퇴 버튼 스타일
+  withdrawButton: {
+    backgroundColor: '#FF4444',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    shadowColor: '#FF4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  withdrawButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
@@ -135,7 +150,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     color: '#666',
     textAlign: 'center',
   },
-  // 🎨 테마 선택 관련 스타일 추가
+  // 🎨 테마 관련 스타일들...
   themeDropdown: {
     backgroundColor: colors.surfaceVariant,
     borderRadius: 12,
@@ -195,6 +210,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  // 🗑️ 로딩 표시
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
 });
 
 export function SettingsScreen() {
@@ -202,6 +223,9 @@ export function SettingsScreen() {
   const { user, logout } = useAppStore();
   const { currentTheme, availableThemes, setTheme } = useThemeStore();
   const [isThemeDropdownOpen, setIsThemeDropdownOpen] = useState(false);
+
+  // 🗑️ 탈퇴 로딩 상태만 유지
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   const handleThemeChange = (themeId: string) => {
     if (themeId === currentTheme.id) {
@@ -239,32 +263,60 @@ export function SettingsScreen() {
     );
   };
 
+  // 🗑️ 간소화된 탈퇴 처리 함수
+  const handleWithdraw = () => {
+    Alert.alert(
+      '🚨 회원 탈퇴',
+      '정말로 탈퇴하시겠습니까?\n\n탈퇴하시면 모든 데이터가 삭제되며 복구할 수 없습니다.',
+      [
+        {
+          text: '취소',
+          style: 'cancel',
+        },
+        {
+          text: '탈퇴하기',
+          style: 'destructive',
+          onPress: confirmWithdraw,
+        },
+      ]
+    );
+  };
+
+  const confirmWithdraw = async () => {
+    setIsWithdrawing(true);
+
+    try {
+      const response = await authService.withdraw();
+
+      if (response.success) {
+        Alert.alert(
+          '탈퇴 완료',
+          '그동안 이용해 주셔서 감사했습니다. 🙏',
+          [
+            {
+              text: '확인',
+              onPress: () => {
+                logout(); // 탈퇴 후 로그아웃 처리
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert('탈퇴 실패', response.message || '탈퇴 중 오류가 발생했습니다.');
+      }
+    } catch (error) {
+      Alert.alert('오류', '탈퇴 처리 중 오류가 발생했습니다.');
+    } finally {
+      setIsWithdrawing(false);
+    }
+  };
+
   const menuItems = [
-    {
-      icon: 'person',
-      title: '프로필 수정',
-      onPress: () => console.log('프로필 수정'),
-    },
-    {
-      icon: 'notifications',
-      title: '알림 설정',
-      onPress: () => console.log('알림 설정'),
-    },
     {
       icon: 'palette',
       title: '테마 설정',
       isThemeItem: true,
       onPress: () => setIsThemeDropdownOpen(!isThemeDropdownOpen),
-    },
-    {
-      icon: 'security',
-      title: '보안 설정',
-      onPress: () => console.log('보안 설정'),
-    },
-    {
-      icon: 'help',
-      title: '도움말',
-      onPress: () => console.log('도움말'),
     },
     {
       icon: 'info',
@@ -316,7 +368,6 @@ export function SettingsScreen() {
                 />
                 <Text style={styles.menuText}>{item.title}</Text>
 
-                {/* 테마 설정일 때 현재 테마 정보 표시 */}
                 {item.isThemeItem && (
                   <View style={styles.currentThemeInfo}>
                     <Text style={styles.themeEmoji}>{currentTheme.emoji}</Text>
@@ -331,7 +382,7 @@ export function SettingsScreen() {
                 />
               </TouchableOpacity>
 
-              {/* 🎨 테마 드롭다운 */}
+              {/* 테마 드롭다운 */}
               {item.isThemeItem && isThemeDropdownOpen && (
                 <View style={styles.themeDropdown}>
                   {availableThemes.map((theme, themeIndex) => (
@@ -370,17 +421,31 @@ export function SettingsScreen() {
               )}
             </View>
           ))}
-
-          {/* 마지막 아이템이 테마가 아닐 때를 위한 처리 */}
-          {!menuItems[menuItems.length - 1].isThemeItem && (
-            <View style={styles.lastMenuItem} />
-          )}
         </View>
 
         {/* 로그아웃 버튼 */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Icon name="logout" size={20} color="#fff" />
           <Text style={styles.logoutButtonText}>로그아웃</Text>
+        </TouchableOpacity>
+
+        {/* 🗑️ 탈퇴 버튼 - 간소화됨 */}
+        <TouchableOpacity
+          style={styles.withdrawButton}
+          onPress={handleWithdraw}
+          disabled={isWithdrawing}
+        >
+          {isWithdrawing ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#fff" />
+              <Text style={styles.withdrawButtonText}>처리중...</Text>
+            </View>
+          ) : (
+            <>
+              <Icon name="delete-forever" size={20} color="#fff" />
+              <Text style={styles.withdrawButtonText}>회원 탈퇴</Text>
+            </>
+          )}
         </TouchableOpacity>
       </CustomScrollView>
     </SafeAreaView>

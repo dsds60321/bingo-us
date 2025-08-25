@@ -25,6 +25,13 @@ export interface EmailConfirmRequest {
   code: string;
 }
 
+// 🗑️ 탈퇴 응답 타입 (간단하게 수정)
+export interface WithdrawResponse {
+  success: boolean;
+  message: string;
+  withdrawnAt?: string;
+}
+
 // 🔥 새로운 로그인 응답 구조에 맞게 수정
 export interface LoginResponse {
   success: boolean;
@@ -149,7 +156,6 @@ class AuthService {
     }
   }
 
-
   // 회원가입
   async signUp(userData: SignUpRequest): Promise<AuthResponse> {
     try {
@@ -240,6 +246,78 @@ class AuthService {
     }
   }
 
+  // 🗑️ 회원 탈퇴 - GET 요청으로 간소화
+  async withdraw(): Promise<ApiResponse<WithdrawResponse>> {
+    try {
+      console.log('🗑️ 회원 탈퇴 요청 시작');
+
+      const response: AxiosResponse<{
+        success: boolean;
+        message: string;
+        code: string;
+        data?: WithdrawResponse;
+        timestamp: number;
+      }> = await apiClient.get(API_ENDPOINTS.auth.withdraw);
+
+      console.log('✅ 회원 탈퇴 응답:', response.data);
+
+      if (response.data.success || response.data.code === '200') {
+        // 탈퇴 성공 시 모든 로컬 데이터 삭제
+        await this.clearAllUserData();
+
+        return {
+          success: true,
+          message: response.data.message || '회원 탈퇴가 완료되었습니다.',
+          data: response.data.data
+        };
+      }
+
+      return {
+        success: false,
+        message: response.data.message || '회원 탈퇴에 실패했습니다.',
+      };
+    } catch (error: any) {
+      console.error('❌ 회원 탈퇴 오류:', error);
+
+      if (error.response?.data?.message) {
+        return {
+          success: false,
+          message: error.response.data.message,
+        };
+      }
+
+      return {
+        success: false,
+        message: '회원 탈퇴 중 오류가 발생했습니다.',
+      };
+    }
+  }
+
+  // 🗑️ 모든 사용자 데이터 삭제 (탈퇴 시 사용)
+  private async clearAllUserData(): Promise<void> {
+    try {
+      console.log('🧹 모든 사용자 데이터 삭제 시작');
+
+      // AsyncStorage에서 모든 사용자 관련 데이터 삭제
+      await AsyncStorage.multiRemove([
+        'sessionKey',
+        'accessToken',
+        'refreshToken',
+        'user',
+        'couple',
+        'userSettings',
+        'appPreferences',
+        'cachedData',
+      ]);
+
+      // ApiClient에서 세션키 제거
+      await apiClient.removeSessionKey();
+
+      console.log('✅ 모든 사용자 데이터 삭제 완료');
+    } catch (error) {
+      console.error('❌ 사용자 데이터 삭제 실패:', error);
+    }
+  }
 
   // 토큰 리프레시
   async refreshToken(refreshToken: string): Promise<AuthResponse> {
